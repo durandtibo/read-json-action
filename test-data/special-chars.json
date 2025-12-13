@@ -1,0 +1,7 @@
+{
+  "message": "Hello \"World\"!",
+  "path": "/usr/local/bin",
+  "newline": "Line 1\nLine 2",
+  "unicode": "Emoji 🚀 and symbols © ® ™",
+  "escaped": "Tab\there"
+}
