@@ -1,11 +1,6 @@
 name: "read-json-file"
 description: |
-  Read and parse a JSON file from your repository. This action reads the content of a
-  JSON file and makes it available as an output for use in subsequent workflow steps.
-  It validates that the file exists and contains valid JSON before proceeding.
-
-  Works on both Linux and macOS runners. The entire JSON content is provided as a
-  string output that can be parsed using fromJSON() in your workflow.
+  Read and validate JSON files with automatic compatibility checking for your Python version
 
 author: "Thibaut Durand"
 branding:
