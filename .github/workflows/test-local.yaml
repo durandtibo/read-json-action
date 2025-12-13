@@ -1,0 +1,72 @@
+name: Test Local Action
+
+on:
+  workflow_call:
+  workflow_dispatch: # to trigger manually
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # -----------------------------------------------------------------------
+      # Test 1: Single-line JSON
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test single-line JSON
+        id: test-single
+        uses: ./
+        with:
+          file-path: test-data/single-line.json
+
+      - name: ✓ Verify single-line JSON
+        run: |
+          echo "📋 Outputs:"
+          echo "  File exists: ${{ steps.test-single.outputs.file-exists }}"
+          echo "  Valid JSON: ${{ steps.test-single.outputs.is-valid-json }}"
+          echo "  Content: ${{ steps.test-single.outputs.json-content }}"
+
+          # Verify outputs
+          if [ "${{ steps.test-single.outputs.file-exists }}" != "true" ]; then
+            echo "::error::❌ File should exist"
+            exit 1
+          fi
+
+          if [ "${{ steps.test-single.outputs.is-valid-json }}" != "true" ]; then
+            echo "::error::❌ JSON should be valid"
+            exit 1
+          fi
+
+          # Parse and verify values
+          NAME="${{ fromJSON(steps.test-single.outputs.json-content).name }}"
+          VERSION="${{ fromJSON(steps.test-single.outputs.json-content).version }}"
+          ACTIVE="${{ fromJSON(steps.test-single.outputs.json-content).active }}"
+
+          if [ "$NAME" != "test" ]; then
+            echo "::error::❌ Expected name='test', got '$NAME'"
+            exit 1
+          fi
+
+          if [ "$VERSION" != "1.0.0" ]; then
+            echo "::error::❌ Expected version='1.0.0', got '$VERSION'"
+            exit 1
+          fi
+
+          if [ "$ACTIVE" != "true" ]; then
+            echo "::error::❌ Expected active='true', got '$ACTIVE'"
+            exit 1
+          fi
+
+          echo "✅ Single-line JSON test passed"

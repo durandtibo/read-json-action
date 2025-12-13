@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "author": "Test User",
+    "created": "2024-01-01",
+    "tags": ["test", "ci", "json"]
+  },
+  "environments": {
+    "dev": {
+      "url": "https://dev.example.com",
+      "port": 3000
+    },
+    "prod": {
+      "url": "https://prod.example.com",
+      "port": 443
+    }
+  },
+  "matrix": [
+    { "os": "ubuntu-latest", "python": "3.9" },
+    { "os": "ubuntu-latest", "python": "3.10" },
+    { "os": "macos-latest", "python": "3.11" }
+  ]
+}
