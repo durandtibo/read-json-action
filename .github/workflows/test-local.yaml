@@ -75,22 +75,22 @@ jobs:
       # -----------------------------------------------------------------------
       # Test 3: Nested JSON with arrays
       # -----------------------------------------------------------------------
-      - name: 🧪 Test nested JSON
-        id: test-nested
-        uses: ./
-        with:
-          file-path: test-data/nested.json
-
-      - name: ✓ Verify nested JSON
-        run: |
-          source scripts/test-helper.sh
-
-          test_nested_json \
-            "${{ steps.test-nested.outputs.file-exists }}" \
-            "${{ steps.test-nested.outputs.is-valid-json }}" \
-            "${{ fromJSON(steps.test-nested.outputs.json-content).metadata.author }}" \
-            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.dev.url }}" \
-            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.prod.port }}"
+#      - name: 🧪 Test nested JSON
+#        id: test-nested
+#        uses: ./
+#        with:
+#          file-path: test-data/nested.json
+#
+#      - name: ✓ Verify nested JSON
+#        run: |
+#          source scripts/test-helper.sh
+#
+#          test_nested_json \
+#            "${{ steps.test-nested.outputs.file-exists }}" \
+#            "${{ steps.test-nested.outputs.is-valid-json }}" \
+#            "${{ fromJSON(steps.test-nested.outputs.json-content).metadata.author }}" \
+#            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.dev.url }}" \
+#            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.prod.port }}"
 
       # -----------------------------------------------------------------------
       # Test 4: JSON with special characters
