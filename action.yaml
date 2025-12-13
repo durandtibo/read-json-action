@@ -128,9 +128,7 @@ runs:
       shell: bash
       run: |
         FILE_PATH="${{ inputs.file-path }}"
-        echo "FILE_PATH=$FILE_PATH"
         CONTENT="${{ steps.read-file.outputs.json-content }}"
-        echo "CONTENT=$CONTENT"
 
         echo "📋 Summary:"
         echo "  📁 File: $FILE_PATH"
