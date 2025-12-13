@@ -19,14 +19,14 @@ both Linux and macOS runners.
 ## 📋 Inputs
 
 | Input                  | Required | Default | Description                                                                                                                  |
-|------------------------|----------|---------|------------------------------------------------------------------------------------------------------------------------------|
-| `file-path`            | ✅ Yes    | -       | Path to the JSON file relative to the repository root (e.g., `config.json`, `data/settings.json`)                            |
-| `fail-on-invalid-json` | ❌ No     | `true`  | Whether to fail if the file contains invalid JSON. When `false`, the action will succeed but `is-valid-json` will be `false` |
+| ---------------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `file-path`            | ✅ Yes   | -       | Path to the JSON file relative to the repository root (e.g., `config.json`, `data/settings.json`)                            |
+| `fail-on-invalid-json` | ❌ No    | `true`  | Whether to fail if the file contains invalid JSON. When `false`, the action will succeed but `is-valid-json` will be `false` |
 
 ## 📤 Outputs
 
 | Output          | Description                                                                             |
-|-----------------|-----------------------------------------------------------------------------------------|
+| --------------- | --------------------------------------------------------------------------------------- |
 | `json-content`  | The complete JSON content as a string. Use `fromJSON()` to parse it in subsequent steps |
 | `file-exists`   | Boolean indicating whether the file exists (`true` or `false`)                          |
 | `is-valid-json` | Boolean indicating whether the file contains valid JSON (`true` or `false`)             |
@@ -37,20 +37,20 @@ both Linux and macOS runners.
 
 ```yaml
 name: Read Configuration
-on: [ push ]
+on: [push]
 
 jobs:
   read-config:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Read JSON file
         id: read-json
         uses: durandtibo/read-json-action@v0.1
         with:
-          file-path: 'config.json'
+          file-path: "config.json"
 
       - name: Display the content
         run: |
@@ -66,7 +66,7 @@ jobs:
   id: config
   uses: durandtibo/read-json-action@v0.1
   with:
-    file-path: 'config/settings.json'
+    file-path: "config/settings.json"
 
 - name: Use parsed values
   run: |
@@ -82,11 +82,7 @@ jobs:
   "app_name": "my-application",
   "version": "1.2.3",
   "debug": true,
-  "features": [
-    "auth",
-    "api",
-    "dashboard"
-  ]
+  "features": ["auth", "api", "dashboard"]
 }
 ```
 
@@ -97,36 +93,12 @@ jobs:
   id: package
   uses: durandtibo/read-json-action@v0.1
   with:
-    file-path: 'package.json'
+    file-path: "package.json"
 
 - name: Get dependencies
   run: |
     echo "Package name: ${{ fromJSON(steps.package.outputs.json-content).name }}"
     echo "Node version: ${{ fromJSON(steps.package.outputs.json-content).engines.node }}"
-```
-
-### Use in a matrix strategy
-
-```yaml
-- name: Read test matrix
-  id: matrix
-  uses: durandtibo/read-json-action@v0.1
-  with:
-    file-path: '.github/test-matrix.json'
-
-- name: Set up matrix
-  id: set-matrix
-  run: |
-    echo "matrix=${{ steps.matrix.outputs.json-content }}" >> $GITHUB_OUTPUT
-
-test:
-  needs: setup
-  strategy:
-    matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
-  runs-on: ${{ matrix.os }}
-  steps:
-    - name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}
-      run: echo "Testing..."
 ```
 
 ### Continue on invalid JSON
@@ -136,7 +108,7 @@ test:
   id: read-json
   uses: durandtibo/read-json-action@v0.1
   with:
-    file-path: 'data.json'
+    file-path: "data.json"
     fail-on-invalid-json: false
 
 - name: Check validity
@@ -156,7 +128,7 @@ test:
   id: features
   uses: durandtibo/read-json-action@v0.1
   with:
-    file-path: 'features.json'
+    file-path: "features.json"
 
 - name: Deploy to staging
   if: fromJSON(steps.features.outputs.json-content).deploy_staging == true
@@ -190,7 +162,7 @@ You can check the outputs to handle these scenarios gracefully:
   id: read-json
   uses: durandtibo/read-json-action@v0.1
   with:
-    file-path: 'config.json'
+    file-path: "config.json"
     fail-on-invalid-json: false
   continue-on-error: true
 
@@ -216,7 +188,7 @@ If you need to access multiple values from the JSON, consider storing the parsed
   id: config
   uses: durandtibo/read-json-action@v0.1
   with:
-    file-path: 'config.json'
+    file-path: "config.json"
 
 - name: Set variables
   id: vars
@@ -236,7 +208,7 @@ If you need to access multiple values from the JSON, consider storing the parsed
   id: config
   uses: durandtibo/read-json-action@v0.1
   with:
-    file-path: 'config.json'
+    file-path: "config.json"
 
 - name: Set environment
   run: |
