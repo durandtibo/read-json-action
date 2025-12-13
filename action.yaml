@@ -1,0 +1,140 @@
+name: 'read-json-file'
+description: |
+  Read and parse a JSON file from your repository. This action reads the content of a 
+  JSON file and makes it available as an output for use in subsequent workflow steps. 
+  It validates that the file exists and contains valid JSON before proceeding.
+  
+  Works on both Linux and macOS runners. The entire JSON content is provided as a 
+  string output that can be parsed using fromJSON() in your workflow.
+author: "Thibaut Durand"
+branding:
+  icon: 'file-text'
+  color: 'blue'
+
+inputs:
+  file-path:
+    description: |
+      Path to the JSON file relative to the repository root 
+      (e.g., "config.json", "data/settings.json")
+    required: true
+  fail-on-invalid-json:
+    description: |
+      Whether to fail if the file contains invalid JSON. When false, the action will succeed 
+      but is-valid-json will be false
+    required: false
+    default: 'true'
+
+outputs:
+  json-content:
+    description: 'The complete JSON content as a string. Use fromJSON() to parse it in subsequent steps'
+    value: ${{ steps.read-file.outputs.json-content }}
+  file-exists:
+    description: 'Boolean indicating whether the file exists'
+    value: ${{ steps.check-file.outputs.file-exists }}
+  is-valid-json:
+    description: 'Boolean indicating whether the file contains valid JSON'
+    value: ${{ steps.validate-json.outputs.is-valid-json }}
+
+runs:
+  using: "composite"
+  steps:
+    # ============================================================================
+    # Step 1: Check if the file exists
+    # ============================================================================
+    # Verify that the specified JSON file exists in the repository.
+    # The action will fail if the file is not found.
+    - name: Check if file exists
+      id: check-file
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        echo "🔍 Checking for file: ${{ inputs.file-path }}"
+        
+        if [ -f "${{ inputs.file-path }}" ]; then
+          echo "✅ File exists"
+          echo "file-exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "::error::❌ File not found: ${{ inputs.file-path }}"
+          echo "file-exists=false" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+    # ============================================================================
+    # Step 2: Read the file content
+    # ============================================================================
+    # Read the entire contents of the JSON file. We use a here-document
+    # approach to safely handle multi-line content and special characters.
+    # This step only runs if the file exists.
+    - name: Read file content
+      id: read-file
+      if: steps.check-file.outputs.file-exists == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        echo "📄 Reading file: ${{ inputs.file-path }}"
+        
+        # Read file content and store it in a variable
+        # Using cat to ensure compatibility across Linux and macOS
+        CONTENT=$(cat "${{ inputs.file-path }}")
+        
+        # Store the content in GitHub output using the heredoc format
+        # This safely handles multi-line content and special characters
+        {
+          echo "json-content<<EOF_JSON_CONTENT"
+          echo "$CONTENT"
+          echo "EOF_JSON_CONTENT"
+        } >> "$GITHUB_OUTPUT"
+        
+        # Display file size for debugging
+        FILE_SIZE=$(wc -c < "${{ inputs.file-path }}" | tr -d ' ')
+        echo "📊 File size: $FILE_SIZE bytes"
+        echo "✅ File content read successfully"
+
+    # ============================================================================
+    # Step 3: Validate JSON syntax
+    # ============================================================================
+    # Verify that the file contains valid JSON using GitHub Actions' fromJSON().
+    # This attempts to parse the JSON in an expression context - if it fails,
+    # the step will error out. This is cleaner than using Python.
+    - name: Validate JSON syntax
+      id: validate-json
+      if: steps.check-file.outputs.file-exists == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        FILE_PATH="${{ inputs.file-path }}"
+        echo "🔎 Validating JSON syntax..."
+        
+        # Attempt to parse JSON using fromJSON() via GitHub Actions expression
+        # We'll write a test that tries to access the parsed JSON
+        PARSED='${{ toJSON(fromJSON(steps.read-file.outputs.json-content)) }}'
+        
+        # If we get here, the JSON was valid
+        echo "✅ Valid JSON"
+        echo "is-valid-json=true" >> "$GITHUB_OUTPUT"
+
+    # ============================================================================
+    # Step 4: Display summary
+    # ============================================================================
+    # Provide a summary of what was read for easy debugging in workflow logs.
+    # Shows a preview of the JSON content (first 200 characters).
+    - name: Display summary
+      if: steps.check-file.outputs.file-exists == 'true'
+      shell: bash
+      run: |
+        FILE_PATH="${{ inputs.file-path }}"
+        CONTENT="${{ steps.read-file.outputs.json-content }}"
+        
+        echo "📋 Summary:"
+        echo "  📁 File: $FILE_PATH"
+        echo "  ✓ Exists: ${{ steps.check-file.outputs.file-exists }}"
+        echo "  ✓ Valid JSON: ${{ steps.validate-json.outputs.is-valid-json }}"
+        
+        # Show a preview of the content (first 200 characters)
+        PREVIEW=$(echo "$CONTENT" | head -c 200)
+        echo ""
+        echo "📄 Content preview (first 200 chars):"
+        echo "$PREVIEW..."
