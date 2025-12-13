@@ -1,0 +1,202 @@
+name: Test Stable Action
+
+on:
+  workflow_call:
+  workflow_dispatch: # to trigger manually
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04,
+            ubuntu-22.04,
+            ubuntu-24.04-arm,
+            ubuntu-22.04-arm,
+            macos-latest,
+            macos-26,
+            macos-15,
+            macos-14,
+            macos-15-intel,
+          ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # -----------------------------------------------------------------------
+      # Test 1: Single-line JSON
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test single-line JSON
+        id: test-single
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/single-line.json
+
+      - name: ✓ Verify single-line JSON
+        run: |
+          source scripts/test-helper.sh
+
+          display_outputs \
+            "${{ steps.test-single.outputs.file-exists }}" \
+            "${{ steps.test-single.outputs.is-valid-json }}" \
+            "${{ steps.test-single.outputs.json-content }}" \
+            "true"
+
+          test_single_line_json \
+            "${{ steps.test-single.outputs.file-exists }}" \
+            "${{ steps.test-single.outputs.is-valid-json }}" \
+            "${{ fromJSON(steps.test-single.outputs.json-content).name }}" \
+            "${{ fromJSON(steps.test-single.outputs.json-content).version }}" \
+            "${{ fromJSON(steps.test-single.outputs.json-content).active }}"
+
+      # -----------------------------------------------------------------------
+      # Test 2: Multi-line JSON
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test multi-line JSON
+        id: test-multi
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/multi-line.json
+
+      - name: ✓ Verify multi-line JSON
+        run: |
+          source scripts/test-helper.sh
+
+          display_outputs \
+            "${{ steps.test-multi.outputs.file-exists }}" \
+            "${{ steps.test-multi.outputs.is-valid-json }}"
+
+          test_multi_line_json \
+            "${{ steps.test-multi.outputs.file-exists }}" \
+            "${{ steps.test-multi.outputs.is-valid-json }}" \
+            "${{ fromJSON(steps.test-multi.outputs.json-content).name }}" \
+            "${{ fromJSON(steps.test-multi.outputs.json-content).config.debug }}" \
+            "${{ fromJSON(steps.test-multi.outputs.json-content).config.timeout }}"
+
+      # -----------------------------------------------------------------------
+      # Test 3: Nested JSON with arrays
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test nested JSON
+        id: test-nested
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/nested.json
+
+      - name: ✓ Verify nested JSON
+        run: |
+          source scripts/test-helper.sh
+
+          test_nested_json \
+            "${{ steps.test-nested.outputs.file-exists }}" \
+            "${{ steps.test-nested.outputs.is-valid-json }}" \
+            "${{ fromJSON(steps.test-nested.outputs.json-content).metadata.author }}" \
+            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.dev.url }}" \
+            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.prod.port }}"
+
+      # -----------------------------------------------------------------------
+      # Test 4: JSON with special characters
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test JSON with special characters
+        id: test-special
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/special-chars.json
+
+      - name: ✓ Verify special characters
+        run: |
+          source scripts/test-helper.sh
+
+          run_basic_validation \
+            "${{ steps.test-special.outputs.file-exists }}" \
+            "${{ steps.test-special.outputs.is-valid-json }}"
+
+          # Verify special characters are preserved
+          MESSAGE='${{ fromJSON(steps.test-special.outputs.json-content).message }}'
+          PATH_VAL='${{ fromJSON(steps.test-special.outputs.json-content).path }}'
+
+          echo "Message: $MESSAGE"
+          echo "Path: $PATH_VAL"
+
+          print_success "Special characters test passed"
+
+      # -----------------------------------------------------------------------
+      # Test 5: Empty JSON objects
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test empty JSON object
+        id: test-empty
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/empty.json
+
+      - name: ✓ Verify empty JSON object
+        run: |
+          source scripts/test-helper.sh
+
+          verify_valid_json "${{ steps.test-empty.outputs.is-valid-json }}"
+          print_success "Empty JSON object test passed"
+
+      - name: 🧪 Test empty JSON array
+        id: test-array
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/empty-array.json
+
+      - name: ✓ Verify empty JSON array
+        run: |
+          source scripts/test-helper.sh
+
+          verify_valid_json "${{ steps.test-array.outputs.is-valid-json }}"
+          print_success "Empty JSON array test passed"
+
+      # -----------------------------------------------------------------------
+      # Test 6: Invalid JSON (should fail)
+      # -----------------------------------------------------------------------
+      - name: 📝 Create invalid JSON for testing error handling
+        run: |
+          echo '{"name": "invalid", "missing": }' > test-data/invalid.json
+
+      - name: 🧪 Test invalid JSON (should fail)
+        id: test-invalid
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/invalid.json
+          fail-on-invalid-json: false
+        continue-on-error: true
+
+      - name: ✓ Verify invalid JSON handling
+        run: |
+          source scripts/test-helper.sh
+
+          verify_invalid_json "${{ steps.test-invalid.outputs.is-valid-json }}"
+
+      # -----------------------------------------------------------------------
+      # Test 7: Non-existent file (should fail)
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test non-existent file (should fail)
+        id: test-missing
+        uses: durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/does-not-exist.json
+        continue-on-error: true
+
+      - name: ✓ Verify missing file handling
+        run: |
+          source scripts/test-helper.sh
+
+          if [ "${{ steps.test-missing.outcome }}" = "success" ]; then
+            print_error "Missing file should cause failure"
+            exit 1
+          fi
+
+          print_success "Missing file test passed (correctly failed)"
