@@ -9,7 +9,7 @@ permissions:
 jobs:
   markdown:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 2
 
     steps:
       - name: Checkout repo
@@ -28,7 +28,7 @@ jobs:
 
   yaml:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 2
 
     steps:
       - name: Checkout repo
