@@ -329,28 +329,31 @@ verify_step_outcome() {
 
 # ==============================================================================
 # Function: verify_no_injection
-# Verifies that a value that looks like a shell command was preserved as plain
-# text and never executed (e.g. no "pwned" leaking into it from `$(...)` or
-# backtick expansion).
+# Verifies that a value that looks like a shell command was preserved exactly
+# as the literal text on disk, i.e. it was never evaluated by a shell (no
+# command substitution, no variable expansion). The expected value must be
+# passed in full so this doesn't rely on fragile substring heuristics (the
+# literal text itself legitimately contains words like "pwned" as part of
+# "echo pwned").
 # Args:
 #   $1 - Field name (for error messages)
-#   $2 - Actual value
+#   $2 - Expected literal value (exactly as stored in the source JSON file)
+#   $3 - Actual value
 # ==============================================================================
 verify_no_injection() {
 	local field_name="$1"
-	local actual="$2"
+	local expected="$2"
+	local actual="$3"
 
 	if [ -z "$actual" ]; then
 		print_error "$field_name is empty; expected the literal shell-like text to be preserved"
 		return 1
 	fi
 
-	case "$actual" in
-	*pwned*)
-		print_error "$field_name looks executed/expanded, found 'pwned' in: $actual"
+	if [ "$actual" != "$expected" ]; then
+		print_error "$field_name was altered (possible injection/expansion). Expected: '$expected', got: '$actual'"
 		return 1
-		;;
-	esac
+	fi
 
 	print_success "$field_name preserved as literal text (no injection): $actual"
 	return 0

@@ -240,4 +240,9 @@ jobs:
             "${{ steps.test-injection.outputs.file-exists }}" \
             "${{ steps.test-injection.outputs.is-valid-json }}"
 
-          verify_no_injection "payload" "$PAYLOAD"
+          EXPECTED_PAYLOAD="$(python3 -c "
+          import json
+          print(json.load(open('test-data/injection-attempt.json'))['payload'])
+          ")"
+
+          verify_no_injection "payload" "$EXPECTED_PAYLOAD" "$PAYLOAD"
