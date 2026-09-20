@@ -43,16 +43,18 @@ runs:
     - name: Check if file exists
       id: check-file
       shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
       run: |
         set -euo pipefail
 
-        echo "🔍 Checking for file: ${{ inputs.file-path }}"
+        echo "🔍 Checking for file: $FILE_PATH"
 
-        if [ -f "${{ inputs.file-path }}" ]; then
+        if [ -f "$FILE_PATH" ]; then
           echo "✅ File exists"
           echo "file-exists=true" >> "$GITHUB_OUTPUT"
         else
-          echo "::error::❌ File not found: ${{ inputs.file-path }}"
+          echo "::error::❌ File not found: $FILE_PATH"
           echo "file-exists=false" >> "$GITHUB_OUTPUT"
           exit 1
         fi
@@ -60,58 +62,74 @@ runs:
     # ============================================================================
     # Step 2: Read the file content
     # ============================================================================
-    # Read the entire contents of the JSON file. We use a here-document
-    # approach to safely handle multi-line content and special characters.
-    # This step only runs if the file exists.
+    # Read the entire contents of the JSON file directly from disk. Content is
+    # never interpolated into the run script itself (only passed via env/files),
+    # which avoids shell/script injection from untrusted file content.
     - name: Read file content
       id: read-file
       if: steps.check-file.outputs.file-exists == 'true'
       shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
       run: |
         set -euo pipefail
 
-        echo "📄 Reading file: ${{ inputs.file-path }}"
+        echo "📄 Reading file: $FILE_PATH"
 
-        # Read file content and store it in a variable
-        # Using cat to ensure compatibility across Linux and macOS
-        CONTENT=$(cat "${{ inputs.file-path }}")
+        # Use a random delimiter so file content can never collide with it
+        # and corrupt the GITHUB_OUTPUT file.
+        RANDOM_ID="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4().hex)')"
+        DELIMITER="EOF_JSON_CONTENT_${RANDOM_ID}"
 
-        # Store the content in GitHub output using the heredoc format
-        # This safely handles multi-line content and special characters
         {
-          echo "json-content<<EOF_JSON_CONTENT"
-          echo "$CONTENT"
-          echo "EOF_JSON_CONTENT"
+          echo "json-content<<$DELIMITER"
+          cat "$FILE_PATH"
+          echo ""
+          echo "$DELIMITER"
         } >> "$GITHUB_OUTPUT"
 
         # Display file size for debugging
-        FILE_SIZE=$(wc -c < "${{ inputs.file-path }}" | tr -d ' ')
+        FILE_SIZE=$(wc -c < "$FILE_PATH" | tr -d ' ')
         echo "📊 File size: $FILE_SIZE bytes"
         echo "✅ File content read successfully"
 
     # ============================================================================
     # Step 3: Validate JSON syntax
     # ============================================================================
-    # Verify that the file contains valid JSON using GitHub Actions' fromJSON().
-    # This attempts to parse the JSON in an expression context - if it fails,
-    # the step will error out. This is cleaner than using Python.
+    # Verify that the file contains valid JSON using Python's json module, which
+    # is preinstalled on both Linux and macOS GitHub-hosted runners. Reading from
+    # disk (rather than embedding content in the workflow expression) avoids
+    # script injection and keeps validation independent of GitHub Actions'
+    # fromJSON() quirks (e.g. its handling of large integers).
     - name: Validate JSON syntax
       id: validate-json
       if: steps.check-file.outputs.file-exists == 'true'
       shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
+        FAIL_ON_INVALID_JSON: ${{ inputs.fail-on-invalid-json }}
       run: |
         set -euo pipefail
 
-        FILE_PATH="${{ inputs.file-path }}"
         echo "🔎 Validating JSON syntax..."
 
-        # Attempt to parse JSON using fromJSON() via GitHub Actions expression
-        # We'll write a test that tries to access the parsed JSON
-        PARSED='${{ toJSON(fromJSON(steps.read-file.outputs.json-content)) }}'
+        ERROR_LOG="$(mktemp)"
+        trap 'rm -f "$ERROR_LOG"' EXIT
 
-        # If we get here, the JSON was valid
-        echo "✅ Valid JSON"
-        echo "is-valid-json=true" >> "$GITHUB_OUTPUT"
+        PY_CHECK='import json, sys; json.load(open(sys.argv[1]))'
+        if python3 -c "$PY_CHECK" "$FILE_PATH" 2>"$ERROR_LOG"; then
+          echo "✅ Valid JSON"
+          echo "is-valid-json=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "⚠️ Invalid JSON"
+          sed -e 's/^/::warning::/' "$ERROR_LOG" || true
+          echo "is-valid-json=false" >> "$GITHUB_OUTPUT"
+
+          if [ "$FAIL_ON_INVALID_JSON" = "true" ]; then
+            echo "::error::❌ File contains invalid JSON: $FILE_PATH"
+            exit 1
+          fi
+        fi
 
     # ============================================================================
     # Step 4: Display summary
@@ -121,17 +139,21 @@ runs:
     - name: Display summary
       if: steps.check-file.outputs.file-exists == 'true'
       shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
+        FILE_EXISTS: ${{ steps.check-file.outputs.file-exists }}
+        IS_VALID_JSON: ${{ steps.validate-json.outputs.is-valid-json }}
       run: |
         set -euo pipefail
 
         echo "📋 Summary:"
-        echo "  📁 File: ${{ inputs.file-path }}"
-        echo "  ✓ Exists: ${{ steps.check-file.outputs.file-exists }}"
-        echo "  ✓ Valid JSON: ${{ steps.validate-json.outputs.is-valid-json }}"
+        echo "  📁 File: $FILE_PATH"
+        echo "  ✓ Exists: $FILE_EXISTS"
+        echo "  ✓ Valid JSON: $IS_VALID_JSON"
 
-        # Show a preview of the content (first 200 characters)
-        # Read directly from file to avoid bash interpretation issues
+        # Show a preview of the content (first 200 characters), read directly
+        # from disk to avoid shell interpretation of the file content.
         echo ""
         echo "📄 Content preview (first 200 chars):"
-        head -c 200 "${{ inputs.file-path }}"
+        head -c 200 "$FILE_PATH"
         echo "..."

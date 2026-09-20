@@ -220,9 +220,21 @@ If you need to access multiple values from the JSON, consider storing the parsed
     echo "Running $APP_NAME version $APP_VERSION"
 ```
 
+## 🔒 Security
+
+File content is never interpolated directly into shell commands or workflow expressions inside
+the action; it's only read from disk and passed through `GITHUB_OUTPUT`/environment variables.
+This means JSON content containing shell metacharacters (e.g. `$(...)`, `` `...` ``) is safe
+to read and cannot execute commands on the runner.
+
+That said, once you pull a value out with `fromJSON(...)` inside a subsequent `run:` step, **you**
+are responsible for not interpolating untrusted content directly into a shell command. Prefer
+passing it through `env:` and referencing it as `"$MY_VAR"`, rather than embedding
+`${{ fromJSON(...).field }}` directly in the script body.
+
 ## 🙏 Acknowledgments
 
-- Uses GitHub Actions' built-in `fromJSON()` and `toJSON()` functions for JSON validation
+- Uses Python's built-in `json` module (preinstalled on GitHub-hosted runners) for JSON validation
 - Inspired by the need for simple JSON file handling in GitHub workflows
 
 ## 🤝Contributing

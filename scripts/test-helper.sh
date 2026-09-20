@@ -306,6 +306,60 @@ test_nested_json() {
 }
 
 # ==============================================================================
+# Function: verify_step_outcome
+# Verifies that a step's `outcome` matches what is expected (success/failure)
+# Args:
+#   $1 - Step description (for error messages)
+#   $2 - Expected outcome ("success" or "failure")
+#   $3 - Actual outcome
+# ==============================================================================
+verify_step_outcome() {
+	local step_desc="$1"
+	local expected="$2"
+	local actual="$3"
+
+	if [ "$actual" != "$expected" ]; then
+		print_error "$step_desc: expected outcome '$expected', got '$actual'"
+		return 1
+	fi
+
+	print_success "$step_desc: outcome is '$actual' as expected"
+	return 0
+}
+
+# ==============================================================================
+# Function: verify_no_injection
+# Verifies that a value that looks like a shell command was preserved exactly
+# as the literal text on disk, i.e. it was never evaluated by a shell (no
+# command substitution, no variable expansion). The expected value must be
+# passed in full so this doesn't rely on fragile substring heuristics (the
+# literal text itself legitimately contains words like "pwned" as part of
+# "echo pwned").
+# Args:
+#   $1 - Field name (for error messages)
+#   $2 - Expected literal value (exactly as stored in the source JSON file)
+#   $3 - Actual value
+# ==============================================================================
+verify_no_injection() {
+	local field_name="$1"
+	local expected="$2"
+	local actual="$3"
+
+	if [ -z "$actual" ]; then
+		print_error "$field_name is empty; expected the literal shell-like text to be preserved"
+		return 1
+	fi
+
+	if [ "$actual" != "$expected" ]; then
+		print_error "$field_name was altered (possible injection/expansion). Expected: '$expected', got: '$actual'"
+		return 1
+	fi
+
+	print_success "$field_name preserved as literal text (no injection): $actual"
+	return 0
+}
+
+# ==============================================================================
 # Function: usage
 # Displays usage information
 # ==============================================================================
