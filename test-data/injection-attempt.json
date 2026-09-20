@@ -1,0 +1,4 @@
+{
+  "payload": "$(echo pwned) `echo pwned` ${GITHUB_TOKEN} \"; echo pwned; \"",
+  "note": "content used to verify the action never interpolates file content into a shell command"
+}
