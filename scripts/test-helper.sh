@@ -21,8 +21,8 @@ NC='\033[0m' # No Color
 # Prints an error message with formatting
 # ==============================================================================
 print_error() {
-    echo -e "${RED}❌ ERROR: $1${NC}" >&2
-    echo "::error::$1"
+	echo -e "${RED}❌ ERROR: $1${NC}" >&2
+	echo "::error::$1"
 }
 
 # ==============================================================================
@@ -30,7 +30,7 @@ print_error() {
 # Prints a success message with formatting
 # ==============================================================================
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+	echo -e "${GREEN}✅ $1${NC}"
 }
 
 # ==============================================================================
@@ -38,7 +38,7 @@ print_success() {
 # Prints an info message with formatting
 # ==============================================================================
 print_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+	echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
 # ==============================================================================
@@ -49,15 +49,15 @@ print_info() {
 #   $2 - Output value
 # ==============================================================================
 verify_output_exists() {
-    local output_name="$1"
-    local output_value="$2"
+	local output_name="$1"
+	local output_value="$2"
 
-    if [ -z "$output_value" ]; then
-        print_error "Output '$output_name' is empty or undefined"
-        return 1
-    fi
+	if [ -z "$output_value" ]; then
+		print_error "Output '$output_name' is empty or undefined"
+		return 1
+	fi
 
-    return 0
+	return 0
 }
 
 # ==============================================================================
@@ -67,17 +67,17 @@ verify_output_exists() {
 #   $1 - file-exists output value
 # ==============================================================================
 verify_file_exists() {
-    local file_exists="$1"
+	local file_exists="$1"
 
-    print_info "Checking file existence..."
+	print_info "Checking file existence..."
 
-    if [ "$file_exists" != "true" ]; then
-        print_error "File should exist (got: $file_exists)"
-        return 1
-    fi
+	if [ "$file_exists" != "true" ]; then
+		print_error "File should exist (got: $file_exists)"
+		return 1
+	fi
 
-    print_success "File exists"
-    return 0
+	print_success "File exists"
+	return 0
 }
 
 # ==============================================================================
@@ -87,17 +87,17 @@ verify_file_exists() {
 #   $1 - is-valid-json output value
 # ==============================================================================
 verify_valid_json() {
-    local is_valid="$1"
+	local is_valid="$1"
 
-    print_info "Checking JSON validity..."
+	print_info "Checking JSON validity..."
 
-    if [ "$is_valid" != "true" ]; then
-        print_error "JSON should be valid (got: $is_valid)"
-        return 1
-    fi
+	if [ "$is_valid" != "true" ]; then
+		print_error "JSON should be valid (got: $is_valid)"
+		return 1
+	fi
 
-    print_success "JSON is valid"
-    return 0
+	print_success "JSON is valid"
+	return 0
 }
 
 # ==============================================================================
@@ -107,17 +107,17 @@ verify_valid_json() {
 #   $1 - is-valid-json output value
 # ==============================================================================
 verify_invalid_json() {
-    local is_valid="$1"
+	local is_valid="$1"
 
-    print_info "Checking JSON invalidity..."
+	print_info "Checking JSON invalidity..."
 
-    if [ "$is_valid" = "true" ]; then
-        print_error "JSON should be invalid but was marked as valid"
-        return 1
-    fi
+	if [ "$is_valid" = "true" ]; then
+		print_error "JSON should be invalid but was marked as valid"
+		return 1
+	fi
 
-    print_success "JSON is correctly marked as invalid"
-    return 0
+	print_success "JSON is correctly marked as invalid"
+	return 0
 }
 
 # ==============================================================================
@@ -129,16 +129,16 @@ verify_invalid_json() {
 #   $3 - Actual value
 # ==============================================================================
 verify_json_value() {
-    local field_name="$1"
-    local expected="$2"
-    local actual="$3"
+	local field_name="$1"
+	local expected="$2"
+	local actual="$3"
 
-    if [ "$actual" != "$expected" ]; then
-        print_error "Expected $field_name='$expected', got '$actual'"
-        return 1
-    fi
+	if [ "$actual" != "$expected" ]; then
+		print_error "Expected $field_name='$expected', got '$actual'"
+		return 1
+	fi
 
-    return 0
+	return 0
 }
 
 # ==============================================================================
@@ -151,24 +151,24 @@ verify_json_value() {
 #   $4 - show-content flag (optional, default: false)
 # ==============================================================================
 display_outputs() {
-    local file_exists="$1"
-    local is_valid="$2"
-    local json_content="${3:-}"
-    local show_content="${4:-false}"
+	local file_exists="$1"
+	local is_valid="$2"
+	local json_content="${3:-}"
+	local show_content="${4:-false}"
 
-    echo ""
-    echo "📋 Action Outputs:"
-    echo "  📁 File exists: $file_exists"
-    echo "  ✓ Valid JSON: $is_valid"
+	echo ""
+	echo "📋 Action Outputs:"
+	echo "  📁 File exists: $file_exists"
+	echo "  ✓ Valid JSON: $is_valid"
 
-    if [ "$show_content" = "true" ] && [ -n "$json_content" ]; then
-        echo "  📄 Content:"
-        echo "$json_content" | head -c 200
-        if [ ${#json_content} -gt 200 ]; then
-            echo "... (truncated)"
-        fi
-    fi
-    echo ""
+	if [ "$show_content" = "true" ] && [ -n "$json_content" ]; then
+		echo "  📄 Content:"
+		echo "$json_content" | head -c 200
+		if [ ${#json_content} -gt 200 ]; then
+			echo "... (truncated)"
+		fi
+	fi
+	echo ""
 }
 
 # ==============================================================================
@@ -180,15 +180,15 @@ display_outputs() {
 # Returns: 0 if all checks pass, 1 otherwise
 # ==============================================================================
 run_basic_validation() {
-    local file_exists="$1"
-    local is_valid="$2"
+	local file_exists="$1"
+	local is_valid="$2"
 
-    local failed=0
+	local failed=0
 
-    verify_file_exists "$file_exists" || failed=1
-    verify_valid_json "$is_valid" || failed=1
+	verify_file_exists "$file_exists" || failed=1
+	verify_valid_json "$is_valid" || failed=1
 
-    return $failed
+	return $failed
 }
 
 # ==============================================================================
@@ -202,31 +202,31 @@ run_basic_validation() {
 #   $5 - active field value
 # ==============================================================================
 test_single_line_json() {
-    local file_exists="$1"
-    local is_valid="$2"
-    local name="$3"
-    local version="$4"
-    local active="$5"
+	local file_exists="$1"
+	local is_valid="$2"
+	local name="$3"
+	local version="$4"
+	local active="$5"
 
-    echo "🧪 Testing single-line JSON..."
+	echo "🧪 Testing single-line JSON..."
 
-    local failed=0
+	local failed=0
 
-    # Basic validation
-    run_basic_validation "$file_exists" "$is_valid" || failed=1
+	# Basic validation
+	run_basic_validation "$file_exists" "$is_valid" || failed=1
 
-    # Field validation
-    verify_json_value "name" "test" "$name" || failed=1
-    verify_json_value "version" "1.0.0" "$version" || failed=1
-    verify_json_value "active" "true" "$active" || failed=1
+	# Field validation
+	verify_json_value "name" "test" "$name" || failed=1
+	verify_json_value "version" "1.0.0" "$version" || failed=1
+	verify_json_value "active" "true" "$active" || failed=1
 
-    if [ $failed -eq 0 ]; then
-        print_success "Single-line JSON test passed"
-        return 0
-    else
-        print_error "Single-line JSON test failed"
-        return 1
-    fi
+	if [ $failed -eq 0 ]; then
+		print_success "Single-line JSON test passed"
+		return 0
+	else
+		print_error "Single-line JSON test failed"
+		return 1
+	fi
 }
 
 # ==============================================================================
@@ -240,31 +240,31 @@ test_single_line_json() {
 #   $5 - timeout field value
 # ==============================================================================
 test_multi_line_json() {
-    local file_exists="$1"
-    local is_valid="$2"
-    local name="$3"
-    local debug="$4"
-    local timeout="$5"
+	local file_exists="$1"
+	local is_valid="$2"
+	local name="$3"
+	local debug="$4"
+	local timeout="$5"
 
-    echo "🧪 Testing multi-line JSON..."
+	echo "🧪 Testing multi-line JSON..."
 
-    local failed=0
+	local failed=0
 
-    # Basic validation
-    run_basic_validation "$file_exists" "$is_valid" || failed=1
+	# Basic validation
+	run_basic_validation "$file_exists" "$is_valid" || failed=1
 
-    # Field validation
-    verify_json_value "name" "test-app" "$name" || failed=1
-    verify_json_value "config.debug" "false" "$debug" || failed=1
-    verify_json_value "config.timeout" "3000" "$timeout" || failed=1
+	# Field validation
+	verify_json_value "name" "test-app" "$name" || failed=1
+	verify_json_value "config.debug" "false" "$debug" || failed=1
+	verify_json_value "config.timeout" "3000" "$timeout" || failed=1
 
-    if [ $failed -eq 0 ]; then
-        print_success "Multi-line JSON test passed"
-        return 0
-    else
-        print_error "Multi-line JSON test failed"
-        return 1
-    fi
+	if [ $failed -eq 0 ]; then
+		print_success "Multi-line JSON test passed"
+		return 0
+	else
+		print_error "Multi-line JSON test failed"
+		return 1
+	fi
 }
 
 # ==============================================================================
@@ -278,31 +278,31 @@ test_multi_line_json() {
 #   $5 - prod_port field value
 # ==============================================================================
 test_nested_json() {
-    local file_exists="$1"
-    local is_valid="$2"
-    local author="$3"
-    local dev_url="$4"
-    local prod_port="$5"
+	local file_exists="$1"
+	local is_valid="$2"
+	local author="$3"
+	local dev_url="$4"
+	local prod_port="$5"
 
-    echo "🧪 Testing nested JSON..."
+	echo "🧪 Testing nested JSON..."
 
-    local failed=0
+	local failed=0
 
-    # Basic validation
-    run_basic_validation "$file_exists" "$is_valid" || failed=1
+	# Basic validation
+	run_basic_validation "$file_exists" "$is_valid" || failed=1
 
-    # Field validation
-    verify_json_value "metadata.author" "Test User" "$author" || failed=1
-    verify_json_value "environments.dev.url" "https://dev.example.com" "$dev_url" || failed=1
-    verify_json_value "environments.prod.port" "443" "$prod_port" || failed=1
+	# Field validation
+	verify_json_value "metadata.author" "Test User" "$author" || failed=1
+	verify_json_value "environments.dev.url" "https://dev.example.com" "$dev_url" || failed=1
+	verify_json_value "environments.prod.port" "443" "$prod_port" || failed=1
 
-    if [ $failed -eq 0 ]; then
-        print_success "Nested JSON test passed"
-        return 0
-    else
-        print_error "Nested JSON test failed"
-        return 1
-    fi
+	if [ $failed -eq 0 ]; then
+		print_success "Nested JSON test passed"
+		return 0
+	else
+		print_error "Nested JSON test failed"
+		return 1
+	fi
 }
 
 # ==============================================================================
@@ -310,7 +310,7 @@ test_nested_json() {
 # Displays usage information
 # ==============================================================================
 usage() {
-    cat << EOF
+	cat <<EOF
 Usage: $0 <function_name> [arguments...]
 
 Available functions:
@@ -335,20 +335,20 @@ EOF
 # Main script execution (if called directly)
 # ==============================================================================
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    if [ $# -eq 0 ]; then
-        usage
-        exit 1
-    fi
+	if [ $# -eq 0 ]; then
+		usage
+		exit 1
+	fi
 
-    # Call the function with remaining arguments
-    FUNCTION_NAME="$1"
-    shift
+	# Call the function with remaining arguments
+	FUNCTION_NAME="$1"
+	shift
 
-    if declare -f "$FUNCTION_NAME" > /dev/null; then
-        "$FUNCTION_NAME" "$@"
-    else
-        print_error "Function '$FUNCTION_NAME' not found"
-        usage
-        exit 1
-    fi
+	if declare -f "$FUNCTION_NAME" >/dev/null; then
+		"$FUNCTION_NAME" "$@"
+	else
+		print_error "Function '$FUNCTION_NAME' not found"
+		usage
+		exit 1
+	fi
 fi
