@@ -159,28 +159,51 @@ jobs:
           print_success "Empty JSON array test passed"
 
       # -----------------------------------------------------------------------
-      # Test 6: Invalid JSON (should fail)
+      # Test 6: Invalid JSON with fail-on-invalid-json=false (should NOT fail)
       # -----------------------------------------------------------------------
       - name: 📝 Create invalid JSON for testing error handling
         run: |
           echo '{"name": "invalid", "missing": }' > test-data/invalid.json
 
-      - name: 🧪 Test invalid JSON (should fail)
-        id: test-invalid
+      - name: 🧪 Test invalid JSON, fail-on-invalid-json=false (should succeed)
+        id: test-invalid-tolerant
         uses: ./
         with:
           file-path: test-data/invalid.json
           fail-on-invalid-json: false
-        continue-on-error: true
 
-      - name: ✓ Verify invalid JSON handling
+      - name: ✓ Verify invalid JSON is reported without failing the step
         run: |
           source scripts/test-helper.sh
 
-          verify_invalid_json "${{ steps.test-invalid.outputs.is-valid-json }}"
+          verify_step_outcome \
+            "Invalid JSON with fail-on-invalid-json=false" \
+            "success" \
+            "${{ steps.test-invalid-tolerant.outcome }}"
+
+          verify_invalid_json "${{ steps.test-invalid-tolerant.outputs.is-valid-json }}"
 
       # -----------------------------------------------------------------------
-      # Test 7: Non-existent file (should fail)
+      # Test 7: Invalid JSON with fail-on-invalid-json=true (default, should fail)
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test invalid JSON, fail-on-invalid-json=true (should fail)
+        id: test-invalid-strict
+        uses: ./
+        with:
+          file-path: test-data/invalid.json
+        continue-on-error: true
+
+      - name: ✓ Verify invalid JSON fails the step by default
+        run: |
+          source scripts/test-helper.sh
+
+          verify_step_outcome \
+            "Invalid JSON with fail-on-invalid-json=true (default)" \
+            "failure" \
+            "${{ steps.test-invalid-strict.outcome }}"
+
+      # -----------------------------------------------------------------------
+      # Test 8: Non-existent file (should fail)
       # -----------------------------------------------------------------------
       - name: 🧪 Test non-existent file (should fail)
         id: test-missing
@@ -193,9 +216,28 @@ jobs:
         run: |
           source scripts/test-helper.sh
 
-          if [ "${{ steps.test-missing.outcome }}" = "success" ]; then
-            print_error "Missing file should cause failure"
-            exit 1
-          fi
+          verify_step_outcome \
+            "Non-existent file" \
+            "failure" \
+            "${{ steps.test-missing.outcome }}"
 
-          print_success "Missing file test passed (correctly failed)"
+      # -----------------------------------------------------------------------
+      # Test 9: JSON content that looks like shell commands must never execute
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test shell/script injection safety
+        id: test-injection
+        uses: ./
+        with:
+          file-path: test-data/injection-attempt.json
+
+      - name: ✓ Verify shell/script injection safety
+        env:
+          PAYLOAD: ${{ fromJSON(steps.test-injection.outputs.json-content).payload }}
+        run: |
+          source scripts/test-helper.sh
+
+          run_basic_validation \
+            "${{ steps.test-injection.outputs.file-exists }}" \
+            "${{ steps.test-injection.outputs.is-valid-json }}"
+
+          verify_no_injection "payload" "$PAYLOAD"

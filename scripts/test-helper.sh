@@ -306,6 +306,57 @@ test_nested_json() {
 }
 
 # ==============================================================================
+# Function: verify_step_outcome
+# Verifies that a step's `outcome` matches what is expected (success/failure)
+# Args:
+#   $1 - Step description (for error messages)
+#   $2 - Expected outcome ("success" or "failure")
+#   $3 - Actual outcome
+# ==============================================================================
+verify_step_outcome() {
+	local step_desc="$1"
+	local expected="$2"
+	local actual="$3"
+
+	if [ "$actual" != "$expected" ]; then
+		print_error "$step_desc: expected outcome '$expected', got '$actual'"
+		return 1
+	fi
+
+	print_success "$step_desc: outcome is '$actual' as expected"
+	return 0
+}
+
+# ==============================================================================
+# Function: verify_no_injection
+# Verifies that a value that looks like a shell command was preserved as plain
+# text and never executed (e.g. no "pwned" leaking into it from `$(...)` or
+# backtick expansion).
+# Args:
+#   $1 - Field name (for error messages)
+#   $2 - Actual value
+# ==============================================================================
+verify_no_injection() {
+	local field_name="$1"
+	local actual="$2"
+
+	if [ -z "$actual" ]; then
+		print_error "$field_name is empty; expected the literal shell-like text to be preserved"
+		return 1
+	fi
+
+	case "$actual" in
+	*pwned*)
+		print_error "$field_name looks executed/expanded, found 'pwned' in: $actual"
+		return 1
+		;;
+	esac
+
+	print_success "$field_name preserved as literal text (no injection): $actual"
+	return 0
+}
+
+# ==============================================================================
 # Function: usage
 # Displays usage information
 # ==============================================================================

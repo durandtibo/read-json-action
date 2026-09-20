@@ -76,9 +76,10 @@ runs:
 
         echo "📄 Reading file: $FILE_PATH"
 
-        # Use a random delimiter so file content can never collide with it and
-        # corrupt the GITHUB_OUTPUT file.
-        DELIMITER="EOF_JSON_CONTENT_$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4().hex)')"
+        # Use a random delimiter so file content can never collide with it
+        # and corrupt the GITHUB_OUTPUT file.
+        RANDOM_ID="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4().hex)')"
+        DELIMITER="EOF_JSON_CONTENT_${RANDOM_ID}"
 
         {
           echo "json-content<<$DELIMITER"
@@ -115,7 +116,8 @@ runs:
         ERROR_LOG="$(mktemp)"
         trap 'rm -f "$ERROR_LOG"' EXIT
 
-        if python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$FILE_PATH" 2>"$ERROR_LOG"; then
+        PY_CHECK='import json, sys; json.load(open(sys.argv[1]))'
+        if python3 -c "$PY_CHECK" "$FILE_PATH" 2>"$ERROR_LOG"; then
           echo "✅ Valid JSON"
           echo "is-valid-json=true" >> "$GITHUB_OUTPUT"
         else
