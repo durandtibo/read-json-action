@@ -10,10 +10,11 @@ both Linux and macOS runners.
 ## 🚀 Features
 
 - ✅ **Simple JSON file reading** - Read any JSON file from your repository
-- 🔍 **Automatic validation** - Validates JSON syntax using GitHub Actions' built-in `fromJSON()`
+- 🔍 **Automatic validation** - Validates JSON syntax with Python's built-in `json` module
 - 🖥️ **Cross-platform** - Works on both Linux and macOS runners
 - 📊 **Helpful outputs** - Provides file existence, validity status, and content
 - 🎯 **Easy integration** - Use with `fromJSON()` to parse the content in subsequent steps
+- 🔒 **Injection-safe** - File content is never interpolated into shell commands or workflow expressions
 - 💡 **Debug-friendly** - Shows file size and content preview in logs
 
 ## 📋 Inputs
@@ -44,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Read JSON file
         id: read-json
@@ -144,8 +145,9 @@ jobs:
 ## 🔧 Requirements
 
 - The action requires the JSON file to exist in your repository
-- The file must be checked out before using this action (use `actions/checkout@v6`)
+- The file must be checked out before using this action (use `actions/checkout@v7`)
 - For parsing the JSON content, use GitHub Actions' built-in `fromJSON()` function
+- The runner must have Python 3 available (preinstalled on GitHub-hosted Linux and macOS runners)
 
 ## ⚠️ Error Handling
 
@@ -239,8 +241,9 @@ passing it through `env:` and referencing it as `"$MY_VAR"`, rather than embeddi
 
 ## 🤝Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how
-to contribute to this project.
+Contributions are welcome! Open an issue or pull request on
+[GitHub](https://github.com/durandtibo/read-json-action). Run `make format` and `make lint`
+before committing.
 
 ## 📝 License
 
