@@ -12,7 +12,7 @@ on:
 permissions: {}
 
 jobs:
-  # Load the shared OS matrix from the default config of
+  # Load the shared Python-version and OS matrices from the default config of
   # durandtibo/workflow-config-action once.
   get-matrix:
     uses: ./.github/workflows/lib-get-test-matrix.yaml

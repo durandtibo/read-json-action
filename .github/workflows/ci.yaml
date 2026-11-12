@@ -25,7 +25,7 @@ on:
 permissions: {}
 
 jobs:
-  # Load the shared OS matrix from the default config of
+  # Load the shared Python-version and OS matrices from the default config of
   # durandtibo/workflow-config-action once, and pass it down to every job
   # below that needs it.
   get-matrix:
@@ -39,7 +39,7 @@ jobs:
     permissions:
       contents: read
 
-  # Test the action from the current repository code (not released yet) on multiple OS
+  # Test the action from the current repository code (not released yet) on multiple OS and Python versions
   action:
     needs: get-matrix
     uses: ./.github/workflows/ci-action.yaml
