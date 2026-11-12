@@ -1,0 +1,5 @@
+{
+  "note": "multi-line values that resemble heredoc delimiters and workflow commands",
+  "lines": "EOF\nEOF_JSON_CONTENT_\n::set-output name=x::y\n::error::fake\nghadelimiter_",
+  "json-content<<EOF": "key that looks like an output assignment"
+}
