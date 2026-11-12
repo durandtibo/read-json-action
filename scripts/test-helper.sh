@@ -359,6 +359,100 @@ verify_no_injection() {
 }
 
 # ==============================================================================
+# Function: verify_content_matches_file
+# Verifies that the json-content output is semantically identical to the JSON
+# file on disk (parsed with Python's json module, so formatting and the trailing
+# newline added by the action are ignored). The content is read from the
+# environment, never interpolated into a script.
+# Args:
+#   $1 - Path of the JSON file
+#   $2 - Name of the environment variable holding the json-content output
+# ==============================================================================
+verify_content_matches_file() {
+	local file="$1"
+	local var_name="$2"
+
+	if CONTENT_VAR="$var_name" python3 -I -c '
+import json, os, sys
+actual = json.loads(os.environ[os.environ["CONTENT_VAR"]])
+with open(sys.argv[1], encoding="utf-8") as f:
+    expected = json.load(f)
+sys.exit(0 if actual == expected and type(actual) is type(expected) else 1)
+' "$file"; then
+		print_success "json-content matches $file"
+		return 0
+	fi
+
+	print_error "json-content does not match $file"
+	return 1
+}
+
+# ==============================================================================
+# Function: verify_raw_content_matches_file
+# Verifies that the json-content output is the exact text of the file (ignoring
+# trailing whitespace). Works for files that are not valid JSON.
+# Args:
+#   $1 - Path of the file
+#   $2 - Name of the environment variable holding the json-content output
+# ==============================================================================
+verify_raw_content_matches_file() {
+	local file="$1"
+	local var_name="$2"
+
+	if CONTENT_VAR="$var_name" python3 -I -c '
+import os, sys
+actual = os.environ[os.environ["CONTENT_VAR"]]
+with open(sys.argv[1], encoding="utf-8", newline="") as f:
+    expected = f.read()
+sys.exit(0 if actual.rstrip() == expected.rstrip() else 1)
+' "$file"; then
+		print_success "Raw json-content matches $file"
+		return 0
+	fi
+
+	print_error "Raw json-content does not match $file"
+	return 1
+}
+
+# ==============================================================================
+# Function: verify_output_empty
+# Verifies that a step output is empty or unset (e.g. after a failed step)
+# Args:
+#   $1 - Output name
+#   $2 - Output value
+# ==============================================================================
+verify_output_empty() {
+	local output_name="$1"
+	local output_value="$2"
+
+	if [ -n "$output_value" ]; then
+		print_error "Output '$output_name' should be empty (got: '$output_value')"
+		return 1
+	fi
+
+	print_success "Output '$output_name' is empty as expected"
+	return 0
+}
+
+# ==============================================================================
+# Function: verify_path_absent
+# Verifies that a path does not exist (e.g. a file a payload tried to create)
+# Args:
+#   $1 - Path
+# ==============================================================================
+verify_path_absent() {
+	local path="$1"
+
+	if [ -e "$path" ] || [ -L "$path" ]; then
+		print_error "'$path' should not exist (possible command injection)"
+		return 1
+	fi
+
+	print_success "'$path' does not exist"
+	return 0
+}
+
+# ==============================================================================
 # Function: usage
 # Displays usage information
 # ==============================================================================
@@ -375,6 +469,10 @@ Available functions:
   run_basic_validation <file-exists> <is-valid-json>
   test_single_line_json <file-exists> <is-valid-json> <name> <version> <active>
   test_multi_line_json <file-exists> <is-valid-json> <name> <debug> <timeout>
+  verify_content_matches_file <file> <env-var-name>
+  verify_raw_content_matches_file <file> <env-var-name>
+  verify_output_empty <name> <value>
+  verify_path_absent <path>
   test_nested_json <file-exists> <is-valid-json> <author> <dev-url> <prod-port>
 
 Example:

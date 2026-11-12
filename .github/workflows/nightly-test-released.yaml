@@ -1,7 +1,7 @@
-# Workflow testing the latest released action, to catch regressions in what consumers pick up
-# on multiple operating systems and Python versions. It mirrors the tests of ci-action.yaml,
-# which tests the current checkout instead. Update the pinned release below when a new version
-# is released.
+# Workflow testing the latest released action (pinned by SHA below) on multiple operating
+# systems and Python versions, to catch regressions in what consumers pick up. It mirrors the
+# tests of ci-action.yaml, which tests the current checkout instead: keep both in sync. Update
+# the pinned release below when a new version is released.
 
 name: Test Released Action
 on:
@@ -37,7 +37,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # -----------------------------------------------------------------------
-      # Test 1: Single-line JSON
+      # Valid JSON: shapes and content
       # -----------------------------------------------------------------------
       - name: 🧪 Test single-line JSON
         id: test-single
@@ -46,25 +46,21 @@ jobs:
           file-path: test-data/single-line.json
 
       - name: ✓ Verify single-line JSON
+        env:
+          FILE_EXISTS: ${{ steps.test-single.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-single.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-single.outputs.json-content }}
+          NAME: ${{ fromJSON(steps.test-single.outputs.json-content).name }}
+          VERSION: ${{ fromJSON(steps.test-single.outputs.json-content).version }}
+          ACTIVE: ${{ fromJSON(steps.test-single.outputs.json-content).active }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          display_outputs \
-            "${{ steps.test-single.outputs.file-exists }}" \
-            "${{ steps.test-single.outputs.is-valid-json }}" \
-            "${{ steps.test-single.outputs.json-content }}" \
-            "true"
+          display_outputs "$FILE_EXISTS" "$IS_VALID" "$CONTENT" "true"
+          test_single_line_json "$FILE_EXISTS" "$IS_VALID" "$NAME" "$VERSION" "$ACTIVE"
+          verify_content_matches_file test-data/single-line.json CONTENT
 
-          test_single_line_json \
-            "${{ steps.test-single.outputs.file-exists }}" \
-            "${{ steps.test-single.outputs.is-valid-json }}" \
-            "${{ fromJSON(steps.test-single.outputs.json-content).name }}" \
-            "${{ fromJSON(steps.test-single.outputs.json-content).version }}" \
-            "${{ fromJSON(steps.test-single.outputs.json-content).active }}"
-
-      # -----------------------------------------------------------------------
-      # Test 2: Multi-line JSON
-      # -----------------------------------------------------------------------
       - name: 🧪 Test multi-line JSON
         id: test-multi
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
@@ -72,23 +68,21 @@ jobs:
           file-path: test-data/multi-line.json
 
       - name: ✓ Verify multi-line JSON
+        env:
+          FILE_EXISTS: ${{ steps.test-multi.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-multi.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-multi.outputs.json-content }}
+          NAME: ${{ fromJSON(steps.test-multi.outputs.json-content).name }}
+          DEBUG: ${{ fromJSON(steps.test-multi.outputs.json-content).config.debug }}
+          TIMEOUT: ${{ fromJSON(steps.test-multi.outputs.json-content).config.timeout }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          display_outputs \
-            "${{ steps.test-multi.outputs.file-exists }}" \
-            "${{ steps.test-multi.outputs.is-valid-json }}"
+          display_outputs "$FILE_EXISTS" "$IS_VALID"
+          test_multi_line_json "$FILE_EXISTS" "$IS_VALID" "$NAME" "$DEBUG" "$TIMEOUT"
+          verify_content_matches_file test-data/multi-line.json CONTENT
 
-          test_multi_line_json \
-            "${{ steps.test-multi.outputs.file-exists }}" \
-            "${{ steps.test-multi.outputs.is-valid-json }}" \
-            "${{ fromJSON(steps.test-multi.outputs.json-content).name }}" \
-            "${{ fromJSON(steps.test-multi.outputs.json-content).config.debug }}" \
-            "${{ fromJSON(steps.test-multi.outputs.json-content).config.timeout }}"
-
-      # -----------------------------------------------------------------------
-      # Test 3: Nested JSON with arrays
-      # -----------------------------------------------------------------------
       - name: 🧪 Test nested JSON
         id: test-nested
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
@@ -96,19 +90,22 @@ jobs:
           file-path: test-data/nested.json
 
       - name: ✓ Verify nested JSON
+        env:
+          FILE_EXISTS: ${{ steps.test-nested.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-nested.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-nested.outputs.json-content }}
+          AUTHOR: ${{ fromJSON(steps.test-nested.outputs.json-content).metadata.author }}
+          DEV_URL: ${{ fromJSON(steps.test-nested.outputs.json-content).environments.dev.url }}
+          PROD_PORT: ${{ fromJSON(steps.test-nested.outputs.json-content).environments.prod.port }}
+          THIRD_OS: ${{ fromJSON(steps.test-nested.outputs.json-content).matrix[2].os }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          test_nested_json \
-            "${{ steps.test-nested.outputs.file-exists }}" \
-            "${{ steps.test-nested.outputs.is-valid-json }}" \
-            "${{ fromJSON(steps.test-nested.outputs.json-content).metadata.author }}" \
-            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.dev.url }}" \
-            "${{ fromJSON(steps.test-nested.outputs.json-content).environments.prod.port }}"
+          test_nested_json "$FILE_EXISTS" "$IS_VALID" "$AUTHOR" "$DEV_URL" "$PROD_PORT"
+          verify_json_value "matrix[2].os" "macos-latest" "$THIRD_OS"
+          verify_content_matches_file test-data/nested.json CONTENT
 
-      # -----------------------------------------------------------------------
-      # Test 4: JSON with special characters
-      # -----------------------------------------------------------------------
       - name: 🧪 Test JSON with special characters
         id: test-special
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
@@ -116,25 +113,24 @@ jobs:
           file-path: test-data/special-chars.json
 
       - name: ✓ Verify special characters
+        env:
+          FILE_EXISTS: ${{ steps.test-special.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-special.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-special.outputs.json-content }}
+          MESSAGE: ${{ fromJSON(steps.test-special.outputs.json-content).message }}
+          NEWLINE: ${{ fromJSON(steps.test-special.outputs.json-content).newline }}
+          UNICODE: ${{ fromJSON(steps.test-special.outputs.json-content).unicode }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          run_basic_validation \
-            "${{ steps.test-special.outputs.file-exists }}" \
-            "${{ steps.test-special.outputs.is-valid-json }}"
-
-          # Verify special characters are preserved
-          MESSAGE='${{ fromJSON(steps.test-special.outputs.json-content).message }}'
-          PATH_VAL='${{ fromJSON(steps.test-special.outputs.json-content).path }}'
-
-          echo "Message: $MESSAGE"
-          echo "Path: $PATH_VAL"
-
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_json_value "message" 'Hello "World"!' "$MESSAGE"
+          verify_json_value "newline" $'Line 1\nLine 2' "$NEWLINE"
+          verify_json_value "unicode" "Emoji 🚀 and symbols © ® ™" "$UNICODE"
+          verify_content_matches_file test-data/special-chars.json CONTENT
           print_success "Special characters test passed"
 
-      # -----------------------------------------------------------------------
-      # Test 5: Empty JSON objects
-      # -----------------------------------------------------------------------
       - name: 🧪 Test empty JSON object
         id: test-empty
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
@@ -142,90 +138,190 @@ jobs:
           file-path: test-data/empty.json
 
       - name: ✓ Verify empty JSON object
+        env:
+          FILE_EXISTS: ${{ steps.test-empty.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-empty.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-empty.outputs.json-content }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          verify_valid_json "${{ steps.test-empty.outputs.is-valid-json }}"
-          print_success "Empty JSON object test passed"
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/empty.json" CONTENT
+          verify_json_value "content" "{}" "$(echo "$CONTENT" | tr -d "[:space:]")"
 
       - name: 🧪 Test empty JSON array
-        id: test-array
+        id: test-array-empty
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
         with:
           file-path: test-data/empty-array.json
 
       - name: ✓ Verify empty JSON array
+        env:
+          FILE_EXISTS: ${{ steps.test-array-empty.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-array-empty.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-array-empty.outputs.json-content }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          verify_valid_json "${{ steps.test-array.outputs.is-valid-json }}"
-          print_success "Empty JSON array test passed"
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/empty-array.json" CONTENT
+          verify_json_value "content" "[]" "$(echo "$CONTENT" | tr -d "[:space:]")"
 
-      # -----------------------------------------------------------------------
-      # Test 6: Invalid JSON with fail-on-invalid-json=false (should NOT fail)
-      # -----------------------------------------------------------------------
-      - name: 📝 Create invalid JSON for testing error handling
-        run: |
-          echo '{"name": "invalid", "missing": }' > test-data/invalid.json
-
-      - name: 🧪 Test invalid JSON, fail-on-invalid-json=false (should succeed)
-        id: test-invalid-tolerant
+      - name: 🧪 Test top-level JSON array
+        id: test-array
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
         with:
-          file-path: test-data/invalid.json
-          fail-on-invalid-json: false
+          file-path: test-data/array.json
 
-      - name: ✓ Verify invalid JSON is reported without failing the step
+      - name: ✓ Verify top-level JSON array
+        env:
+          FILE_EXISTS: ${{ steps.test-array.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-array.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-array.outputs.json-content }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          verify_step_outcome \
-            "Invalid JSON with fail-on-invalid-json=false" \
-            "success" \
-            "${{ steps.test-invalid-tolerant.outcome }}"
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/array.json" CONTENT
 
-          verify_invalid_json "${{ steps.test-invalid-tolerant.outputs.is-valid-json }}"
-
-      # -----------------------------------------------------------------------
-      # Test 7: Invalid JSON with fail-on-invalid-json=true (default, should fail)
-      # -----------------------------------------------------------------------
-      - name: 🧪 Test invalid JSON, fail-on-invalid-json=true (should fail)
-        id: test-invalid-strict
+      - name: 🧪 Test top-level JSON string
+        id: test-scalar-string
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
         with:
-          file-path: test-data/invalid.json
-        continue-on-error: true
+          file-path: test-data/scalar-string.json
 
-      - name: ✓ Verify invalid JSON fails the step by default
+      - name: ✓ Verify top-level JSON string
+        env:
+          FILE_EXISTS: ${{ steps.test-scalar-string.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-scalar-string.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-scalar-string.outputs.json-content }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          verify_step_outcome \
-            "Invalid JSON with fail-on-invalid-json=true (default)" \
-            "failure" \
-            "${{ steps.test-invalid-strict.outcome }}"
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/scalar-string.json" CONTENT
 
-      # -----------------------------------------------------------------------
-      # Test 8: Non-existent file (should fail)
-      # -----------------------------------------------------------------------
-      - name: 🧪 Test non-existent file (should fail)
-        id: test-missing
+      - name: 🧪 Test top-level JSON number
+        id: test-scalar-number
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
         with:
-          file-path: test-data/does-not-exist.json
-        continue-on-error: true
+          file-path: test-data/scalar-number.json
 
-      - name: ✓ Verify missing file handling
+      - name: ✓ Verify top-level JSON number
+        env:
+          FILE_EXISTS: ${{ steps.test-scalar-number.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-scalar-number.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-scalar-number.outputs.json-content }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          verify_step_outcome \
-            "Non-existent file" \
-            "failure" \
-            "${{ steps.test-missing.outcome }}"
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/scalar-number.json" CONTENT
+
+      - name: 🧪 Test top-level JSON null
+        id: test-scalar-null
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/scalar-null.json
+
+      - name: ✓ Verify top-level JSON null
+        env:
+          FILE_EXISTS: ${{ steps.test-scalar-null.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-scalar-null.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-scalar-null.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/scalar-null.json" CONTENT
+
+      - name: 🧪 Test JSON with very large numbers
+        id: test-large-numbers
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/large-numbers.json
+
+      - name: ✓ Verify JSON with very large numbers
+        env:
+          FILE_EXISTS: ${{ steps.test-large-numbers.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-large-numbers.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-large-numbers.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/large-numbers.json" CONTENT
+          # Numbers must be preserved textually, not rounded by the action
+          grep -q "12345678901234567890123" <<<"$CONTENT"
+          grep -q "9007199254740993" <<<"$CONTENT"
+
+      - name: 🧪 Test JSON without trailing newline
+        id: test-no-newline
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/no-trailing-newline.json
+
+      - name: ✓ Verify JSON without trailing newline
+        env:
+          FILE_EXISTS: ${{ steps.test-no-newline.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-no-newline.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-no-newline.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/no-trailing-newline.json" CONTENT
+
+      - name: 🧪 Test path containing spaces
+        id: test-spaces
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/dir with spaces/file name.json
+
+      - name: ✓ Verify path containing spaces
+        env:
+          FILE_EXISTS: ${{ steps.test-spaces.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-spaces.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-spaces.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/dir with spaces/file name.json" CONTENT
 
       # -----------------------------------------------------------------------
-      # Test 9: JSON content that looks like shell commands must never execute
+      # Output integrity: content resembling heredoc delimiters / workflow commands
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test JSON resembling output delimiters and workflow commands
+        id: test-delimiter
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/delimiter-collision.json
+
+      - name: ✓ Verify JSON resembling output delimiters and workflow commands
+        env:
+          FILE_EXISTS: ${{ steps.test-delimiter.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-delimiter.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-delimiter.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file "test-data/delimiter-collision.json" CONTENT
+          verify_output_exists "json-content" "$CONTENT"
+
+      # -----------------------------------------------------------------------
+      # Injection safety
       # -----------------------------------------------------------------------
       - name: 🧪 Test shell/script injection safety
         id: test-injection
@@ -235,17 +331,383 @@ jobs:
 
       - name: ✓ Verify shell/script injection safety
         env:
+          FILE_EXISTS: ${{ steps.test-injection.outputs.file-exists }}
+          IS_VALID: ${{ steps.test-injection.outputs.is-valid-json }}
+          CONTENT: ${{ steps.test-injection.outputs.json-content }}
           PAYLOAD: ${{ fromJSON(steps.test-injection.outputs.json-content).payload }}
         run: |
+          set -euo pipefail
           source scripts/test-helper.sh
 
-          run_basic_validation \
-            "${{ steps.test-injection.outputs.file-exists }}" \
-            "${{ steps.test-injection.outputs.is-valid-json }}"
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file test-data/injection-attempt.json CONTENT
 
-          EXPECTED_PAYLOAD="$(python3 -c "
+          EXPECTED_PAYLOAD="$(python3 -I -c "
           import json
           print(json.load(open('test-data/injection-attempt.json'))['payload'])
           ")"
 
           verify_no_injection "payload" "$EXPECTED_PAYLOAD" "$PAYLOAD"
+
+      - name: 🧪 Test shell metacharacters in file-path input
+        id: test-path-injection
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: "test-data/x$(touch injected-by-path).json"
+        continue-on-error: true
+
+      - name: ✓ Verify file-path input is never executed
+        env:
+          OUTCOME: ${{ steps.test-path-injection.outcome }}
+          FILE_EXISTS: ${{ steps.test-path-injection.outputs.file-exists }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "Shell metacharacters in file-path" "failure" "$OUTCOME"
+          verify_json_value "file-exists" "false" "$FILE_EXISTS"
+          verify_path_absent "injected-by-path"
+          verify_path_absent "test-data/injected-by-path"
+
+      # -----------------------------------------------------------------------
+      # Invalid / empty files, fail-on-invalid-json=false (must NOT fail)
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test invalid JSON, fail-on-invalid-json=false
+        id: tol-invalid
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/invalid.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify invalid JSON is reported without failing
+        env:
+          OUTCOME: ${{ steps.tol-invalid.outcome }}
+          FILE_EXISTS: ${{ steps.tol-invalid.outputs.file-exists }}
+          IS_VALID: ${{ steps.tol-invalid.outputs.is-valid-json }}
+          CONTENT: ${{ steps.tol-invalid.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "invalid JSON" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/invalid.json CONTENT
+
+      - name: 🧪 Test empty (0 byte) file, fail-on-invalid-json=false
+        id: tol-empty-file
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/empty-file.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify empty (0 byte) file is reported without failing
+        env:
+          OUTCOME: ${{ steps.tol-empty-file.outcome }}
+          FILE_EXISTS: ${{ steps.tol-empty-file.outputs.file-exists }}
+          IS_VALID: ${{ steps.tol-empty-file.outputs.is-valid-json }}
+          CONTENT: ${{ steps.tol-empty-file.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "empty (0 byte) file" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/empty-file.json CONTENT
+
+      - name: 🧪 Test whitespace-only file, fail-on-invalid-json=false
+        id: tol-whitespace
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/whitespace-only.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify whitespace-only file is reported without failing
+        env:
+          OUTCOME: ${{ steps.tol-whitespace.outcome }}
+          FILE_EXISTS: ${{ steps.tol-whitespace.outputs.file-exists }}
+          IS_VALID: ${{ steps.tol-whitespace.outputs.is-valid-json }}
+          CONTENT: ${{ steps.tol-whitespace.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "whitespace-only file" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/whitespace-only.json CONTENT
+
+      - name: 🧪 Test trailing comma, fail-on-invalid-json=false
+        id: tol-trailing-comma
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/trailing-comma.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify trailing comma is reported without failing
+        env:
+          OUTCOME: ${{ steps.tol-trailing-comma.outcome }}
+          FILE_EXISTS: ${{ steps.tol-trailing-comma.outputs.file-exists }}
+          IS_VALID: ${{ steps.tol-trailing-comma.outputs.is-valid-json }}
+          CONTENT: ${{ steps.tol-trailing-comma.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "trailing comma" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/trailing-comma.json CONTENT
+
+      - name: 🧪 Test single-quoted JSON, fail-on-invalid-json=false
+        id: tol-single-quotes
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/single-quotes.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify single-quoted JSON is reported without failing
+        env:
+          OUTCOME: ${{ steps.tol-single-quotes.outcome }}
+          FILE_EXISTS: ${{ steps.tol-single-quotes.outputs.file-exists }}
+          IS_VALID: ${{ steps.tol-single-quotes.outputs.is-valid-json }}
+          CONTENT: ${{ steps.tol-single-quotes.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "single-quoted JSON" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/single-quotes.json CONTENT
+
+      - name: 🧪 Test truncated JSON, fail-on-invalid-json=false
+        id: tol-truncated
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/truncated.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify truncated JSON is reported without failing
+        env:
+          OUTCOME: ${{ steps.tol-truncated.outcome }}
+          FILE_EXISTS: ${{ steps.tol-truncated.outputs.file-exists }}
+          IS_VALID: ${{ steps.tol-truncated.outputs.is-valid-json }}
+          CONTENT: ${{ steps.tol-truncated.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "truncated JSON" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/truncated.json CONTENT
+
+      - name: 🧪 Test multiple JSON documents, fail-on-invalid-json=false
+        id: tol-trailing-data
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/trailing-data.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify multiple JSON documents is reported without failing
+        env:
+          OUTCOME: ${{ steps.tol-trailing-data.outcome }}
+          FILE_EXISTS: ${{ steps.tol-trailing-data.outputs.file-exists }}
+          IS_VALID: ${{ steps.tol-trailing-data.outputs.is-valid-json }}
+          CONTENT: ${{ steps.tol-trailing-data.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "multiple JSON documents" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/trailing-data.json CONTENT
+
+      # -----------------------------------------------------------------------
+      # Invalid / empty files, fail-on-invalid-json=true (default or explicit): must fail
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test invalid JSON with default input (should fail)
+        id: strict-default
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/invalid.json
+        continue-on-error: true
+
+      - name: ✓ Verify invalid JSON with default input fails the step
+        env:
+          OUTCOME: ${{ steps.strict-default.outcome }}
+          IS_VALID: ${{ steps.strict-default.outputs.is-valid-json }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "invalid JSON with default input" "failure" "$OUTCOME"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+
+      - name: 🧪 Test invalid JSON with explicit true (should fail)
+        id: strict-explicit
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/invalid.json
+          fail-on-invalid-json: "true"
+        continue-on-error: true
+
+      - name: ✓ Verify invalid JSON with explicit true fails the step
+        env:
+          OUTCOME: ${{ steps.strict-explicit.outcome }}
+          IS_VALID: ${{ steps.strict-explicit.outputs.is-valid-json }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "invalid JSON with explicit true" "failure" "$OUTCOME"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+
+      - name: 🧪 Test empty file with default input (should fail)
+        id: strict-empty-file
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/empty-file.json
+        continue-on-error: true
+
+      - name: ✓ Verify empty file with default input fails the step
+        env:
+          OUTCOME: ${{ steps.strict-empty-file.outcome }}
+          IS_VALID: ${{ steps.strict-empty-file.outputs.is-valid-json }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "empty file with default input" "failure" "$OUTCOME"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+
+      - name: 🧪 Test whitespace-only file with default input (should fail)
+        id: strict-whitespace
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/whitespace-only.json
+        continue-on-error: true
+
+      - name: ✓ Verify whitespace-only file with default input fails the step
+        env:
+          OUTCOME: ${{ steps.strict-whitespace.outcome }}
+          IS_VALID: ${{ steps.strict-whitespace.outputs.is-valid-json }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "whitespace-only file with default input" "failure" "$OUTCOME"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+
+      - name: 🧪 Test multiple JSON documents with default input (should fail)
+        id: strict-trailing-data
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/trailing-data.json
+        continue-on-error: true
+
+      - name: ✓ Verify multiple JSON documents with default input fails the step
+        env:
+          OUTCOME: ${{ steps.strict-trailing-data.outcome }}
+          IS_VALID: ${{ steps.strict-trailing-data.outputs.is-valid-json }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "multiple JSON documents with default input" "failure" "$OUTCOME"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+
+      # -----------------------------------------------------------------------
+      # Missing file / directory: always fail, whatever fail-on-invalid-json is
+      # -----------------------------------------------------------------------
+      - name: 🧪 Test non-existent file (should fail)
+        id: missing
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/does-not-exist.json
+        continue-on-error: true
+
+      - name: ✓ Verify non-existent file fails
+        env:
+          OUTCOME: ${{ steps.missing.outcome }}
+          FILE_EXISTS: ${{ steps.missing.outputs.file-exists }}
+          IS_VALID: ${{ steps.missing.outputs.is-valid-json }}
+          CONTENT: ${{ steps.missing.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "non-existent file" "failure" "$OUTCOME"
+          verify_json_value "file-exists" "false" "$FILE_EXISTS"
+          verify_output_empty "is-valid-json" "$IS_VALID"
+          verify_output_empty "json-content" "$CONTENT"
+
+      - name: 🧪 Test missing file, tolerant mode (should fail)
+        id: missing-tolerant
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/does-not-exist.json
+          fail-on-invalid-json: "false"
+        continue-on-error: true
+
+      - name: ✓ Verify missing file, tolerant mode fails
+        env:
+          OUTCOME: ${{ steps.missing-tolerant.outcome }}
+          FILE_EXISTS: ${{ steps.missing-tolerant.outputs.file-exists }}
+          IS_VALID: ${{ steps.missing-tolerant.outputs.is-valid-json }}
+          CONTENT: ${{ steps.missing-tolerant.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "missing file, tolerant mode" "failure" "$OUTCOME"
+          verify_json_value "file-exists" "false" "$FILE_EXISTS"
+          verify_output_empty "is-valid-json" "$IS_VALID"
+          verify_output_empty "json-content" "$CONTENT"
+
+      - name: 🧪 Test directory instead of file (should fail)
+        id: directory
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/a-directory.json
+        continue-on-error: true
+
+      - name: ✓ Verify directory instead of file fails
+        env:
+          OUTCOME: ${{ steps.directory.outcome }}
+          FILE_EXISTS: ${{ steps.directory.outputs.file-exists }}
+          IS_VALID: ${{ steps.directory.outputs.is-valid-json }}
+          CONTENT: ${{ steps.directory.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "directory instead of file" "failure" "$OUTCOME"
+          verify_json_value "file-exists" "false" "$FILE_EXISTS"
+          verify_output_empty "is-valid-json" "$IS_VALID"
+          verify_output_empty "json-content" "$CONTENT"
+
+      - name: 🧪 Test empty file-path (should fail)
+        id: empty-path
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: ""
+        continue-on-error: true
+
+      - name: ✓ Verify empty file-path fails
+        env:
+          OUTCOME: ${{ steps.empty-path.outcome }}
+          FILE_EXISTS: ${{ steps.empty-path.outputs.file-exists }}
+          IS_VALID: ${{ steps.empty-path.outputs.is-valid-json }}
+          CONTENT: ${{ steps.empty-path.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "empty file-path" "failure" "$OUTCOME"
+          verify_json_value "file-exists" "false" "$FILE_EXISTS"
+          verify_output_empty "is-valid-json" "$IS_VALID"
+          verify_output_empty "json-content" "$CONTENT"
