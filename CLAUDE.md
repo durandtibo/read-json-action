@@ -45,16 +45,17 @@ injection attempts) those workflows read.
 
 ## Workflow structure (`.github/workflows/`)
 
-- `ci.yaml`: entry point for pull requests and pushes to `main`. It holds no steps, only jobs that
-  call the reusable workflows below.
-  - `format.yaml`: Markdown, shell, YAML and Makefile lint/format checks (via `make`).
-  - `test-local.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
+- `ci.yaml`: entry point for pull requests, pushes to `main` and a nightly schedule. It holds no
+  steps, only jobs that call the reusable workflows below.
+  - `lib-get-test-matrix.yaml`: loads the OS matrix from `durandtibo/workflow-config-action`.
+  - `ci-format.yaml`: Markdown, shell and YAML lint checks (via `make`).
+  - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
     released yet.
-- `nightly-tests.yaml`: scheduled entry point that calls `test-stable.yaml`, which tests the
-  latest released action.
-- `verify-workflows.yaml`: lints the workflow files themselves, with its own triggers.
-- `cancel-stale-queued-runs.yaml`: scheduled automation that cancels stale queued runs.
-- `dependency-review.yml`: dependency review on pull requests.
+- `nightly.yaml`: scheduled entry point that calls `nightly-test-released.yaml`, which tests the
+  latest released action (pinned by SHA; update it on release).
+- `ci-verify-workflows.yaml`: lints the workflow files themselves, with its own triggers.
+- `bot-cancel-stale-queued-runs.yaml`: scheduled automation that cancels stale queued runs.
+- `security-dependency-review.yaml`: dependency review on pull requests.
 
 Conventions:
 

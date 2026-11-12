@@ -1,7 +1,7 @@
 # read-json-action
 
 [![CI](https://github.com/durandtibo/read-json-action/actions/workflows/ci.yaml/badge.svg)](https://github.com/durandtibo/read-json-action/actions/workflows/ci.yaml)
-[![Nightly Tests](https://github.com/durandtibo/read-json-action/actions/workflows/nightly-tests.yaml/badge.svg)](https://github.com/durandtibo/read-json-action/actions/workflows/nightly-tests.yaml)
+[![Nightly Tests](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml/badge.svg)](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/durandtibo/read-json-action/blob/main/LICENSE)
 
 A GitHub composite action to read and validate JSON files from your repository. Works seamlessly on
