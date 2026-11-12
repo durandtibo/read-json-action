@@ -1,5 +1,5 @@
 # Workflow testing the action from the current repository code (uses: ./)
-# on multiple operating systems.
+# on multiple operating systems and Python versions.
 
 name: Test Action
 on:
@@ -23,10 +23,16 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJson(inputs.test-matrix).os_matrix }}
+        python-version: ${{ fromJson(inputs.test-matrix).python_versions_standard }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # ratchet:actions/setup-python@v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
 
       # -----------------------------------------------------------------------
       # Test 1: Single-line JSON
