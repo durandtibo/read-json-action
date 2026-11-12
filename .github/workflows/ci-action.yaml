@@ -1,44 +1,39 @@
-name: Test Stable Action
+# Workflow testing the action from the current repository code (uses: ./)
+# on multiple operating systems.
 
+name: Test Action
 on:
   workflow_call:
-  workflow_dispatch: # to trigger manually
+    inputs:
+      test-matrix:
+        description: "JSON test matrix from lib-get-test-matrix.yaml, loaded once by the caller"
+        required: true
+        type: string
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test:
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 2
+    timeout-minutes: 5
     strategy:
       max-parallel: 8
       fail-fast: false
       matrix:
-        os:
-          [
-            ubuntu-latest,
-            ubuntu-24.04,
-            ubuntu-22.04,
-            ubuntu-24.04-arm,
-            ubuntu-22.04-arm,
-            macos-latest,
-            macos-26,
-            macos-15,
-            macos-14,
-            macos-15-intel,
-          ]
+        os: ${{ fromJson(inputs.test-matrix).os_matrix }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       # -----------------------------------------------------------------------
       # Test 1: Single-line JSON
       # -----------------------------------------------------------------------
       - name: 🧪 Test single-line JSON
         id: test-single
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/single-line.json
 
@@ -64,7 +59,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🧪 Test multi-line JSON
         id: test-multi
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/multi-line.json
 
@@ -88,7 +83,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🧪 Test nested JSON
         id: test-nested
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/nested.json
 
@@ -108,7 +103,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🧪 Test JSON with special characters
         id: test-special
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/special-chars.json
 
@@ -134,7 +129,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🧪 Test empty JSON object
         id: test-empty
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/empty.json
 
@@ -147,7 +142,7 @@ jobs:
 
       - name: 🧪 Test empty JSON array
         id: test-array
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/empty-array.json
 
@@ -167,7 +162,7 @@ jobs:
 
       - name: 🧪 Test invalid JSON, fail-on-invalid-json=false (should succeed)
         id: test-invalid-tolerant
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/invalid.json
           fail-on-invalid-json: false
@@ -188,7 +183,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🧪 Test invalid JSON, fail-on-invalid-json=true (should fail)
         id: test-invalid-strict
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/invalid.json
         continue-on-error: true
@@ -207,7 +202,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🧪 Test non-existent file (should fail)
         id: test-missing
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/does-not-exist.json
         continue-on-error: true
@@ -226,7 +221,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: 🧪 Test shell/script injection safety
         id: test-injection
-        uses: durandtibo/read-json-action@v0.1
+        uses: ./
         with:
           file-path: test-data/injection-attempt.json
 
