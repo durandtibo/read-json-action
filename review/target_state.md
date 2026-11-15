@@ -31,57 +31,69 @@ Ordered by impact.
 
 ### Correctness and security
 
-- **1.** **File content is printed to the log.** The "Display summary" step runs `head -c 200 "$FILE_PATH"`.
-   A line starting with `::error::`, `::add-mask::` or `::stop-commands::` in the file is executed
-   as a workflow command. The file may also contain secrets. This contradicts P3 and the README's
-   "injection-safe" claim, and no test covers it. The test "resembling workflow commands" only
-   checks the output, not the log. `head -c` can also cut a UTF-8 character in half.
-- **2.** **`fail-on-invalid-json` accepts any string.** Anything other than the exact text `true` means
-   tolerant mode. `"True"`, `"yes"` or `"ture"` silently turn validation off. The fail-safe default
-   is lost because of a typo.
-- **3.** **`json-content` is inconsistent.** `cat file; echo ""` keeps a trailing newline when the file
-   ends with a newline and drops it when it does not. The tests hide this by comparing parsed JSON
-   and `rstrip()`ed text.
-- **4.** **`json-content` is set for invalid files.** In tolerant mode the raw invalid text is exposed.
-   The next `fromJSON()` call then fails the whole job with a confusing error. The safe contract is
-   empty content when the JSON is invalid.
-- **5.** **The Python call uses the locale encoding.** `open(path)` depends on the runner locale. A UTF-8
-   file can be rejected or accepted differently on two runners. Python also accepts `NaN` and
-   `Infinity`, which `fromJSON()` and RFC 8259 reject, so `is-valid-json: true` can still be
-   followed by a `fromJSON()` failure.
-- **6.** **No size check.** A step output is limited to 1 MiB. A bigger file fails in the runner with a
-   cryptic message instead of a clear `::error::`.
-- **7.** **Weak input validation.** An empty `file-path` gives "File not found: ". A path with a newline
-   can forge log lines. A path starting with `-` is passed to `cat` without `--`. A directory gives
-   the same message as a missing file.
+- **1.** **File content is printed to the log.** The "Display summary" step runs `head -c 200
+"$FILE_PATH"`.
+  A line starting with `::error::`, `::add-mask::` or `::stop-commands::` in the file is executed
+  as a workflow command. The file may also contain secrets. This contradicts P3 and the README's
+  "injection-safe" claim, and no test covers it. The test "resembling workflow commands" only
+  checks the output, not the log. `head -c` can also cut a UTF-8 character in half.
+- **2.** **`fail-on-invalid-json` accepts any string.** Anything other than the exact text `true`
+  means
+  tolerant mode. `"True"`, `"yes"` or `"ture"` silently turn validation off. The fail-safe default
+  is lost because of a typo.
+- **3.** **`json-content` is inconsistent.** `cat file; echo ""` keeps a trailing newline when the
+  file
+  ends with a newline and drops it when it does not. The tests hide this by comparing parsed JSON
+  and `rstrip()`ed text.
+- **4.** **`json-content` is set for invalid files.** In tolerant mode the raw invalid text is
+  exposed.
+  The next `fromJSON()` call then fails the whole job with a confusing error. The safe contract is
+  empty content when the JSON is invalid.
+- **5.** **The Python call uses the locale encoding.** `open(path)` depends on the runner locale. A
+  UTF-8
+  file can be rejected or accepted differently on two runners. Python also accepts `NaN` and
+  `Infinity`, which `fromJSON()` and RFC 8259 reject, so `is-valid-json: true` can still be
+  followed by a `fromJSON()` failure.
+- **6.** **No size check.** A step output is limited to 1 MiB. A bigger file fails in the runner
+  with a
+  cryptic message instead of a clear `::error::`.
+- **7.** **Weak input validation.** An empty `file-path` gives "File not found: ". A path with a
+  newline
+  can forge log lines. A path starting with `-` is passed to `cat` without `--`. A directory gives
+  the same message as a missing file.
 
 ### Design
 
-- **8.** **`file-exists` carries no information.** The step fails when the file is missing, so the output
-   is `true` whenever the action succeeds. When the action fails, the value is only readable with
-   `continue-on-error`. The `file-exists` workaround in the README exists only because of this.
-- **9.** **Four steps for one job.** Check, read, validate and summary are four process starts and four
-   log groups. Splitting them makes the logic harder to follow, because the validity result is
-   needed before deciding whether to expose content.
-- **10.** **Wrong or misleading metadata.** The description says "automatic compatibility checking for
-    your Python version", which the action does not do. `file-path` is documented as "relative to
-    the repository root", but it is relative to the step's working directory.
-- **11.** **`uuidgen` with a Python fallback** to build a delimiter. `od` on `/dev/urandom` is portable on
-    GNU and BSD, and needs neither `uuidgen` nor a second Python process.
+- **8.** **`file-exists` carries no information.** The step fails when the file is missing, so the
+  output
+  is `true` whenever the action succeeds. When the action fails, the value is only readable with
+  `continue-on-error`. The `file-exists` workaround in the README exists only because of this.
+- **9.** **Four steps for one job.** Check, read, validate and summary are four process starts and
+  four
+  log groups. Splitting them makes the logic harder to follow, because the validity result is
+  needed before deciding whether to expose content.
+- **10.** **Wrong or misleading metadata.** The description says "automatic compatibility checking
+  for
+  your Python version", which the action does not do. `file-path` is documented as "relative to
+  the repository root", but it is relative to the step's working directory.
+- **11.** **`uuidgen` with a Python fallback** to build a delimiter. `od` on `/dev/urandom` is
+  portable on
+  GNU and BSD, and needs neither `uuidgen` nor a second Python process.
 
 ### Tests and docs
 
 - **12.** **`ci-action.yaml` (714 lines) and `nightly-test-released.yaml` (713 lines) are copies.**
-    `CLAUDE.md` says to "keep both in sync" by hand. Every new test is added twice.
+  `CLAUDE.md` says to "keep both in sync" by hand. Every new test is added twice.
 - **13.** **About 33 cases, each written as two hand-written steps** of 12 to 25 lines. The only
-    difference between cases is a file, a flag and an expectation, which is data.
+  difference between cases is a file, a flag and an expectation, which is data.
 - **14.** **`scripts/test-helper.sh` is 500 lines.** About 60% is per-fixture wrappers
-    (`test_single_line_json`, `test_multi_line_json`, `test_nested_json`) and print helpers. The
-    wrappers hard-code fixture values in the script, which is the wrong place for them.
-- **15.** **README examples break the project's own rule.** They use `${{ ...json-content }}` inside `run:`,
-    and `echo '${{ ... }}' | jq`, which is injectable and breaks on a single quote in the JSON. The
-    "avoid repeated `fromJSON()` calls" tip still repeats `fromJSON()` three times. The README is
-    250 lines with a features list, an acknowledgments section and several near-duplicate examples.
+  (`test_single_line_json`, `test_multi_line_json`, `test_nested_json`) and print helpers. The
+  wrappers hard-code fixture values in the script, which is the wrong place for them.
+- **15.** **README examples break the project's own rule.** They use `${{ ...json-content }}`
+  inside `run:`,
+  and `echo '${{ ... }}' | jq`, which is injectable and breaks on a single quote in the JSON. The
+  "avoid repeated `fromJSON()` calls" tip still repeats `fromJSON()` three times. The README is
+  250 lines with a features list, an acknowledgments section and several near-duplicate examples.
 
 ## 3. Target contract
 
@@ -258,7 +270,7 @@ action and the released action run exactly the same cases.
 
 ### Structure
 
-```
+```text
 test-data/
   cases.json          # one entry per case, the single source for both workflows
   *.json              # fixtures (kept; add the new ones listed below)
