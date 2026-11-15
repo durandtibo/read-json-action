@@ -20,6 +20,9 @@ TOOLS_MK_INCLUDED := 1
 # (user), apt. A tool installed any other way (`go install`, a downloaded binary, ...) is reported and
 # left alone. The target keeps going when one upgrade fails and exits with 1 at the end.
 #
+# `install-tools` installs every tool of `TOOLS` by running its `install-<tool>` target, so each tool's
+# module must be included (or `TOOLS` narrowed to the tools of the modules you include).
+#
 # Optional variables (set before including this file, or on the command line):
 #   TOOLS ?= actionlint bats ...          # space-separated tools to check (default: tools used by this repo)
 #   TOOL_SOURCES ?= actionlint=github:rhysd/actionlint ...
@@ -39,6 +42,9 @@ TOOL_SOURCES ?= actionlint=github:rhysd/actionlint bats=github:bats-core/bats-co
 	zizmor=github:zizmorcore/zizmor
 TOOL_BREW_NAMES ?= bats=bats-core
 TOOL_NPM_NAMES ?= markdownlint=markdownlint-cli taplo=@taplo/cli
+
+.PHONY: install-tools
+install-tools: $(addprefix install-,$(TOOLS)) ## Install all the tools of TOOLS
 
 .PHONY: check-tools
 check-tools: ## Show which tools are installed and which are missing
