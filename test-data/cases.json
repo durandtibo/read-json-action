@@ -1,0 +1,459 @@
+[
+  {
+    "id": "single-line",
+    "file-path": "test-data/single-line.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "multi-line",
+    "file-path": "test-data/multi-line.json",
+    "expect-outcome": "success",
+    "expect-valid": "true",
+    "python-compat": true
+  },
+  {
+    "id": "nested",
+    "file-path": "test-data/nested.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "special-chars",
+    "file-path": "test-data/special-chars.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "empty-object",
+    "file-path": "test-data/empty.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "empty-array",
+    "file-path": "test-data/empty-array.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "top-level-array",
+    "file-path": "test-data/array.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "top-level-string",
+    "file-path": "test-data/scalar-string.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "top-level-number",
+    "file-path": "test-data/scalar-number.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "top-level-null",
+    "file-path": "test-data/scalar-null.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "large-numbers",
+    "file-path": "test-data/large-numbers.json",
+    "expect-outcome": "success",
+    "expect-valid": "true",
+    "python-compat": true,
+    "skip-fromjson": true
+  },
+  {
+    "id": "no-trailing-newline",
+    "file-path": "test-data/no-trailing-newline.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "unicode",
+    "file-path": "test-data/unicode.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "crlf",
+    "file-path": "test-data/crlf.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "deeply-nested",
+    "file-path": "test-data/deeply-nested.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "large-file",
+    "file-path": "test-data/large.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "dot-slash-path",
+    "file-path": "./test-data/single-line.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "path-with-spaces",
+    "file-path": "test-data/dir with spaces/file name.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "delimiter-collision",
+    "file-path": "test-data/delimiter-collision.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "injection-attempt",
+    "file-path": "test-data/injection-attempt.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "invalid-tolerant",
+    "file-path": "test-data/invalid.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false",
+    "python-compat": true
+  },
+  {
+    "id": "empty-file-tolerant",
+    "file-path": "test-data/empty-file.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "whitespace-only-tolerant",
+    "file-path": "test-data/whitespace-only.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "trailing-comma-tolerant",
+    "file-path": "test-data/trailing-comma.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "single-quotes-tolerant",
+    "file-path": "test-data/single-quotes.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "truncated-tolerant",
+    "file-path": "test-data/truncated.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "trailing-data-tolerant",
+    "file-path": "test-data/trailing-data.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "log-injection-tolerant",
+    "file-path": "test-data/log-injection.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "invalid-default",
+    "file-path": "test-data/invalid.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "invalid-explicit-true",
+    "file-path": "test-data/invalid.json",
+    "fail-on-error": "true",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "empty-file-default",
+    "file-path": "test-data/empty-file.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "whitespace-only-default",
+    "file-path": "test-data/whitespace-only.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "trailing-data-default",
+    "file-path": "test-data/trailing-data.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "missing-file",
+    "file-path": "test-data/does-not-exist.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "missing-file-tolerant",
+    "file-path": "test-data/does-not-exist.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "directory",
+    "file-path": "test-data/a-directory.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "empty-path",
+    "file-path": "",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "shell-metacharacters-in-path",
+    "file-path": "test-data/x$(touch injected-by-path).json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "directory-tolerant",
+    "file-path": "test-data/a-directory.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "directory-trailing-slash",
+    "file-path": "test-data/a-directory.json/",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "empty-path-tolerant",
+    "file-path": "",
+    "fail-on-error": "false",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-capitalised",
+    "file-path": "test-data/single-line.json",
+    "fail-on-error": "True",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-capitalised-with-invalid-file",
+    "file-path": "test-data/invalid.json",
+    "fail-on-error": "True",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-yes",
+    "file-path": "test-data/single-line.json",
+    "fail-on-error": "yes",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-yes-with-invalid-file",
+    "file-path": "test-data/invalid.json",
+    "fail-on-error": "yes",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-blank",
+    "file-path": "test-data/single-line.json",
+    "fail-on-error": " ",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-blank-with-invalid-file",
+    "file-path": "test-data/invalid.json",
+    "fail-on-error": " ",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-typo",
+    "file-path": "test-data/single-line.json",
+    "fail-on-error": "ture",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "fail-on-error-typo-with-invalid-file",
+    "file-path": "test-data/invalid.json",
+    "fail-on-error": "ture",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "path-with-newline",
+    "file-path": "test-data/single-line.json\nforged",
+    "fail-on-error": "false",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "path-with-carriage-return",
+    "file-path": "test-data/single-line.json\rforged",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "path-starting-with-dash",
+    "file-path": "-n",
+    "expect-outcome": "success",
+    "expect-valid": "true",
+    "skip-fromjson": true
+  },
+  {
+    "id": "symlink",
+    "file-path": "test-data/symlink.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "with-trailing-newline",
+    "file-path": "test-data/with-trailing-newline.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "two-trailing-newlines",
+    "file-path": "test-data/two-trailing-newlines.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "nan-strict",
+    "file-path": "test-data/nan.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "nan-tolerant",
+    "file-path": "test-data/nan.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "infinity-strict",
+    "file-path": "test-data/infinity.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "infinity-tolerant",
+    "file-path": "test-data/infinity.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "bom-strict",
+    "file-path": "test-data/bom.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "bom-tolerant",
+    "file-path": "test-data/bom.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "latin1-strict",
+    "file-path": "test-data/latin1.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "latin1-tolerant",
+    "file-path": "test-data/latin1.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "latin1-c-locale",
+    "file-path": "test-data/latin1.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false",
+    "lc-all": "C"
+  },
+  {
+    "id": "latin1-utf8-locale",
+    "file-path": "test-data/latin1.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false",
+    "lc-all": "en_US.UTF-8"
+  },
+  {
+    "id": "special-chars-c-locale",
+    "file-path": "test-data/special-chars.json",
+    "expect-outcome": "success",
+    "expect-valid": "true",
+    "lc-all": "C"
+  },
+  {
+    "id": "over-1mib",
+    "file-path": "test-data/generated/over-1mib.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "over-1mib-tolerant",
+    "file-path": "test-data/generated/over-1mib.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  },
+  {
+    "id": "unreadable",
+    "file-path": "test-data/generated/unreadable.json",
+    "expect-outcome": "failure",
+    "expect-valid": "false"
+  },
+  {
+    "id": "unreadable-tolerant",
+    "file-path": "test-data/generated/unreadable.json",
+    "fail-on-error": "false",
+    "expect-outcome": "success",
+    "expect-valid": "false"
+  }
+]
