@@ -1,7 +1,5 @@
 name: "read-json-file"
-description: |
-  Read and validate JSON files with automatic compatibility checking for your Python version
-
+description: "Read a JSON file from disk, validate it, and expose its content as a step output"
 author: "Thibaut Durand"
 branding:
   icon: "file-text"
@@ -10,145 +8,138 @@ branding:
 inputs:
   file-path:
     description: |
-      Path to the JSON file relative to the repository root
-      (e.g., "config.json", "data/settings.json")
+      Path to the JSON file. Relative paths are resolved from the step's working directory
     required: true
-  fail-on-invalid-json:
+  fail-on-error:
     description: |
-      Whether to fail if the file contains invalid JSON. When false, the action will succeed
-      but is-valid-json will be false
+      Whether to fail when the file is missing, unreadable, larger than 1 MiB or not valid JSON.
+      When "false" these problems become a warning and is-valid-json is "false"
     required: false
     default: "true"
 
 outputs:
+  is-valid-json:
+    description: '"true" if the file is valid JSON, otherwise "false"'
+    value: ${{ steps.result.outputs.is-valid-json || 'false' }}
   json-content:
     description: |
-      The complete JSON content as a string. Use fromJSON() to parse it in subsequent steps
-    value: ${{ steps.read-file.outputs.json-content }}
-  file-exists:
-    description: "Boolean indicating whether the file exists"
-    value: ${{ steps.check-file.outputs.file-exists }}
-  is-valid-json:
-    description: "Boolean indicating whether the file contains valid JSON"
-    value: ${{ steps.validate-json.outputs.is-valid-json }}
+      The file text without its trailing newline. Empty unless is-valid-json is "true".
+      Use fromJSON() to parse it
+    value: ${{ steps.content.outputs.json-content }}
 
 runs:
   using: "composite"
   steps:
-    # ============================================================================
-    # Step 1: Check if the file exists
-    # ============================================================================
-    # Verify that the specified JSON file exists in the repository.
-    # The action will fail if the file is not found.
-    - name: Check if file exists
-      id: check-file
+    # Step 1: caller mistakes always fail, whatever fail-on-error says.
+    - name: Check inputs
+      id: inputs
       shell: bash
       env:
         FILE_PATH: ${{ inputs.file-path }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
       run: |
         set -euo pipefail
 
-        echo "🔍 Checking for file: $FILE_PATH"
-
-        if [ -f "$FILE_PATH" ]; then
-          echo "✅ File exists"
-          echo "file-exists=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "::error::❌ File not found: $FILE_PATH"
-          echo "file-exists=false" >> "$GITHUB_OUTPUT"
+        die() {
+          echo "::error::$1"
           exit 1
-        fi
+        }
 
-    # ============================================================================
-    # Step 2: Read the file content
-    # ============================================================================
-    # Read the entire contents of the JSON file directly from disk. Content is
-    # never interpolated into the run script itself (only passed via env/files),
-    # which avoids shell/script injection from untrusted file content.
-    - name: Read file content
-      id: read-file
-      if: steps.check-file.outputs.file-exists == 'true'
+        [ -n "$FILE_PATH" ] || die "file-path must not be empty"
+        case "$FILE_PATH" in *$'\n'* | *$'\r'*) die "file-path must not contain a newline" ;; esac
+        case "$FAIL_ON_ERROR" in
+          true | false) ;;
+          *) die "fail-on-error must be 'true' or 'false'" ;;
+        esac
+        command -v python3 > /dev/null || die "python3 is required but was not found"
+
+    # Step 2: file-level problems. Reports the first one and never fails by itself.
+    - name: Check file
+      id: file
       shell: bash
       env:
         FILE_PATH: ${{ inputs.file-path }}
       run: |
         set -euo pipefail
 
-        echo "📄 Reading file: $FILE_PATH"
-
-        # Use a random delimiter so file content can never collide with it
-        # and corrupt the GITHUB_OUTPUT file.
-        RANDOM_ID="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4().hex)')"
-        DELIMITER="EOF_JSON_CONTENT_${RANDOM_ID}"
-
-        {
-          echo "json-content<<$DELIMITER"
-          cat "$FILE_PATH"
-          echo ""
-          echo "$DELIMITER"
-        } >> "$GITHUB_OUTPUT"
-
-        # Display file size for debugging
-        FILE_SIZE=$(wc -c < "$FILE_PATH" | tr -d ' ')
-        echo "📊 File size: $FILE_SIZE bytes"
-        echo "✅ File content read successfully"
-
-    # ============================================================================
-    # Step 3: Validate JSON syntax
-    # ============================================================================
-    # Verify that the file contains valid JSON using Python's json module, which
-    # is preinstalled on both Linux and macOS GitHub-hosted runners. Reading from
-    # disk (rather than embedding content in the workflow expression) avoids
-    # script injection and keeps validation independent of GitHub Actions'
-    # fromJSON() quirks (e.g. its handling of large integers).
-    - name: Validate JSON syntax
-      id: validate-json
-      if: steps.check-file.outputs.file-exists == 'true'
-      shell: bash
-      env:
-        FILE_PATH: ${{ inputs.file-path }}
-        FAIL_ON_INVALID_JSON: ${{ inputs.fail-on-invalid-json }}
-      run: |
-        set -euo pipefail
-
-        echo "🔎 Validating JSON syntax..."
-
-        ERROR_LOG="$(mktemp)"
-        trap 'rm -f "$ERROR_LOG"' EXIT
-
-        PY_CHECK='import json, sys; json.load(open(sys.argv[1]))'
-        if python3 -c "$PY_CHECK" "$FILE_PATH" 2>"$ERROR_LOG"; then
-          echo "✅ Valid JSON"
-          echo "is-valid-json=true" >> "$GITHUB_OUTPUT"
+        limit=1048576 # GitHub step output limit (1 MiB)
+        problem=""
+        size=0
+        if [ ! -e "$FILE_PATH" ]; then
+          problem="File not found: $FILE_PATH"
+        elif [ ! -f "$FILE_PATH" ]; then
+          problem="Not a regular file: $FILE_PATH"
+        elif [ ! -r "$FILE_PATH" ]; then
+          problem="File is not readable: $FILE_PATH"
         else
-          echo "⚠️ Invalid JSON"
-          sed -e 's/^/::warning::/' "$ERROR_LOG" || true
-          echo "is-valid-json=false" >> "$GITHUB_OUTPUT"
-
-          if [ "$FAIL_ON_INVALID_JSON" = "true" ]; then
-            echo "::error::❌ File contains invalid JSON: $FILE_PATH"
-            exit 1
+          size="$(wc -c < "$FILE_PATH")"
+          size=$((size)) # BSD wc pads with spaces
+          if [ "$size" -gt "$limit" ]; then
+            problem="File is $size bytes, over the $limit byte limit: $FILE_PATH"
           fi
         fi
 
-    # ============================================================================
-    # Step 4: Display summary
-    # ============================================================================
-    # Provide a summary of what was read for easy debugging in workflow logs.
-    # The file content is deliberately never printed: a line such as "::error::x"
-    # or "::add-mask::x" in the file would run as a workflow command, and the
-    # file may contain secrets.
-    - name: Display summary
-      if: steps.check-file.outputs.file-exists == 'true'
+        {
+          echo "problem=$problem"
+          echo "size=$size"
+        } >> "$GITHUB_OUTPUT"
+
+    # Step 3: syntax. The checker prints one line on failure and never the file content.
+    - name: Validate JSON syntax
+      id: json
+      if: steps.file.outputs.problem == ''
       shell: bash
       env:
         FILE_PATH: ${{ inputs.file-path }}
-        FILE_EXISTS: ${{ steps.check-file.outputs.file-exists }}
-        IS_VALID_JSON: ${{ steps.validate-json.outputs.is-valid-json }}
       run: |
         set -euo pipefail
 
-        echo "📋 Summary:"
-        echo "  📁 File: $FILE_PATH"
-        echo "  ✓ Exists: $FILE_EXISTS"
-        echo "  ✓ Valid JSON: $IS_VALID_JSON"
+        problem=""
+        if ! reason="$(python3 -I "$GITHUB_ACTION_PATH/scripts/validate-json.py" "$FILE_PATH" 2>&1)"; then
+          problem="Invalid JSON in $FILE_PATH (${reason//$'\n'/ })"
+        fi
+        echo "problem=$problem" >> "$GITHUB_OUTPUT"
+
+    # Step 4: the only step that decides between failing and warning.
+    - name: Report result
+      id: result
+      shell: bash
+      env:
+        PROBLEM: ${{ steps.file.outputs.problem || steps.json.outputs.problem }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "$PROBLEM" ]; then
+          echo "is-valid-json=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "is-valid-json=false" >> "$GITHUB_OUTPUT"
+        if [ "$FAIL_ON_ERROR" = "true" ]; then
+          echo "::error::$PROBLEM"
+          exit 1
+        fi
+        echo "::warning::$PROBLEM"
+
+    # Step 5: only reached for a valid file. Content is never printed.
+    - name: Expose content
+      id: content
+      if: steps.result.outputs.is-valid-json == 'true'
+      shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
+        SIZE: ${{ steps.file.outputs.size }}
+      run: |
+        set -euo pipefail
+
+        # The delimiter is random, so no file content can end the output early.
+        delimiter="ghadelimiter_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+        {
+          echo "json-content<<$delimiter"
+          cat -- "$FILE_PATH"
+          # $(...) strips a trailing newline, so this adds one only if the file lacks it.
+          [ -z "$(tail -c 1 < "$FILE_PATH")" ] || echo
+          echo "$delimiter"
+        } >> "$GITHUB_OUTPUT"
+        echo "Read $FILE_PATH ($SIZE bytes, valid JSON)"

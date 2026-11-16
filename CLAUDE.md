@@ -5,11 +5,12 @@ Guidance for coding agents working in this repository.
 ## Repository purpose
 
 A GitHub composite action (`action.yaml`) that reads a JSON file from the repository, validates
-its syntax with Python's `json` module, and exposes `json-content`, `file-exists` and
-`is-valid-json` outputs. It must work on GNU/Linux and BSD/macOS runners. The logic lives in
-bash steps inside `action.yaml`. `scripts/test-helper.sh` provides assertion helpers used by the
-test workflows, and `test-data/` holds the JSON fixtures (valid, empty, special characters,
-injection attempts) those workflows read.
+its syntax as strict RFC 8259 JSON, and exposes `json-content` and `is-valid-json` outputs. It must
+work on GNU/Linux and BSD/macOS runners. The logic lives in five small bash steps inside
+`action.yaml` (check inputs, check file, validate syntax, report result, expose content), plus
+`scripts/validate-json.py` for the syntax check. `scripts/test-helper.sh` provides assertion
+helpers used by the test workflow, `scripts/setup-fixtures.sh` creates the fixtures that cannot be
+committed, and `test-data/` holds the fixtures and the case list `cases.json` those workflows read.
 
 ## Environment
 
@@ -40,12 +41,15 @@ injection attempts) those workflows read.
 ## Action rules (`action.yaml`)
 
 - Keep input/output names, defaults, and descriptions consistent with `README.md`. Renaming or
-  removing an input or output (`file-path`, `fail-on-invalid-json`, `json-content`,
-  `file-exists`, `is-valid-json`) is a breaking change and must be flagged.
+  removing an input or output (`file-path`, `fail-on-error`, `json-content`,
+  `is-valid-json`) is a breaking change and must be flagged.
 - Pass inputs to scripts through `env:`, never by interpolating them in `run:`.
 - Never interpolate file content into `run:` or workflow expressions; read it from disk.
 - Never print file content to the log.
 - Every `run:` step sets `shell: bash` and starts with `set -euo pipefail`.
+- Only the `inputs` and `result` steps may `exit 1`. `fail-on-error` is read in `result` only.
+  The other steps report a `problem` output.
+- `json-content` is set if and only if `is-valid-json` is `true`.
 - Pin third-party actions in workflows to commit SHAs with a `# ratchet:<owner>/<repo>@<tag>`
   comment, never to tags or branches.
 - Workflows use least-privilege `permissions` and set `timeout-minutes` on jobs.
@@ -92,7 +96,8 @@ Conventions:
   `scripts/test-helper.sh`. To add a test, add a fixture to `test-data/` and a case to
   `test-data/cases.json`; do not edit the workflows. `test-helper.sh` holds no fixture knowledge.
 - Add a fixture to `test-data/` for each new case; cover success, failure, and edge cases (empty
-  file, missing file, directory, invalid JSON, special characters, injection attempts).
+  file, missing file, directory, invalid JSON, special characters, injection attempts). Fixtures that
+  cannot be committed (over-size, unreadable) are created by `scripts/setup-fixtures.sh`.
 - Pass outputs to verification scripts through `env:`, never interpolated into the script.
 - Every bug fix needs a regression test that fails without the fix.
 - If a check fails for a real reason, report it rather than weakening the test.

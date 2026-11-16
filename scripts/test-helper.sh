@@ -54,21 +54,23 @@ verify_path_absent() {
 	print_success "'$1' does not exist"
 }
 
-# Compares the content of an environment variable with a file, ignoring
-# trailing whitespace. Works for files that are not valid JSON.
+# Checks that an environment variable holds the exact text of a file, minus one
+# trailing newline (what the action promises for json-content).
 # Args: path of the file, name of the environment variable holding the content
-verify_raw_content_matches_file() {
+verify_exact_content_matches_file() {
 	if CONTENT_VAR="$2" python3 -I -c '
 import os, sys
 actual = os.environ[os.environ["CONTENT_VAR"]]
-with open(sys.argv[1], encoding="utf-8", newline="") as f:
-    expected = f.read()
-sys.exit(0 if actual.rstrip() == expected.rstrip() else 1)
+with open(sys.argv[1], "rb") as f:
+    expected = f.read().decode("utf-8")
+if expected.endswith("\n"):
+    expected = expected[:-1]
+sys.exit(0 if actual == expected else 1)
 ' "$1"; then
-		print_success "json-content matches $1"
+		print_success "json-content is exactly the text of $1"
 		return 0
 	fi
-	print_error "json-content does not match $1"
+	print_error "json-content is not exactly the text of $1"
 	return 1
 }
 
@@ -91,26 +93,20 @@ sys.exit(0 if actual == expected and type(actual) is type(expected) else 1)
 }
 
 # Checks one case of test-data/cases.json. Reads from the environment:
-#   CASE_ID, FILE_PATH                        the case
-#   EXPECT_OUTCOME, EXPECT_EXISTS,
-#   EXPECT_VALID, EXPECT_CONTENT              what the case expects
-#   OUTCOME, FILE_EXISTS, IS_VALID, CONTENT   what the action returned
-# EXPECT_CONTENT is "file" (the file text), "empty" or "any" (not checked).
+#   CASE_ID, FILE_PATH                  the case
+#   EXPECT_OUTCOME, EXPECT_VALID        what the case expects
+#   OUTCOME, IS_VALID, CONTENT          what the action returned
+# json-content must be the file text when the file is valid and empty otherwise.
 verify_case() {
 	local failed=0
-	echo "🧪 Case: $CASE_ID ($FILE_PATH)"
+	echo "🧪 Case: $CASE_ID"
 	verify_step_outcome "$CASE_ID" "$EXPECT_OUTCOME" "$OUTCOME" || failed=1
-	verify_json_value "file-exists" "$EXPECT_EXISTS" "$FILE_EXISTS" || failed=1
 	verify_json_value "is-valid-json" "$EXPECT_VALID" "$IS_VALID" || failed=1
-	case "$EXPECT_CONTENT" in
-	file) verify_raw_content_matches_file "$FILE_PATH" CONTENT || failed=1 ;;
-	empty) verify_output_empty "json-content" "$CONTENT" || failed=1 ;;
-	any) ;;
-	*)
-		print_error "Unknown expect-content '$EXPECT_CONTENT'"
-		failed=1
-		;;
-	esac
+	if [ "$EXPECT_VALID" = "true" ]; then
+		verify_exact_content_matches_file "$FILE_PATH" CONTENT || failed=1
+	else
+		verify_output_empty "json-content" "$CONTENT" || failed=1
+	fi
 	# No case may create a file through a payload hidden in the path.
 	verify_path_absent "injected-by-path" || failed=1
 	verify_path_absent "test-data/injected-by-path" || failed=1
