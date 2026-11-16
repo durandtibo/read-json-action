@@ -370,6 +370,143 @@ jobs:
           verify_path_absent "injected-by-path"
           verify_path_absent "test-data/injected-by-path"
 
+      - name: 🧪 Test Unicode content
+        id: t-unicode
+        uses: ./
+        with:
+          file-path: test-data/unicode.json
+
+      - name: ✓ Verify Unicode content
+        env:
+          FILE_EXISTS: ${{ steps.t-unicode.outputs.file-exists }}
+          IS_VALID: ${{ steps.t-unicode.outputs.is-valid-json }}
+          CONTENT: ${{ steps.t-unicode.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file test-data/unicode.json CONTENT
+          # Non-ASCII characters must round-trip unchanged
+          grep -q "héllo wörld 你好 🎉" <<<"$CONTENT"
+
+      - name: 🧪 Test CRLF line endings
+        id: t-crlf
+        uses: ./
+        with:
+          file-path: test-data/crlf.json
+
+      - name: ✓ Verify CRLF line endings
+        env:
+          FILE_EXISTS: ${{ steps.t-crlf.outputs.file-exists }}
+          IS_VALID: ${{ steps.t-crlf.outputs.is-valid-json }}
+          CONTENT: ${{ steps.t-crlf.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file test-data/crlf.json CONTENT
+
+      - name: 🧪 Test deeply nested JSON
+        id: t-deeply-nested
+        uses: ./
+        with:
+          file-path: test-data/deeply-nested.json
+
+      - name: ✓ Verify deeply nested JSON
+        env:
+          FILE_EXISTS: ${{ steps.t-deeply-nested.outputs.file-exists }}
+          IS_VALID: ${{ steps.t-deeply-nested.outputs.is-valid-json }}
+          CONTENT: ${{ steps.t-deeply-nested.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file test-data/deeply-nested.json CONTENT
+
+      - name: 🧪 Test large file (~200 KB)
+        id: t-large
+        uses: ./
+        with:
+          file-path: test-data/large.json
+
+      - name: ✓ Verify large file (~200 KB)
+        env:
+          FILE_EXISTS: ${{ steps.t-large.outputs.file-exists }}
+          IS_VALID: ${{ steps.t-large.outputs.is-valid-json }}
+          CONTENT: ${{ steps.t-large.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file test-data/large.json CONTENT
+          # Last element must survive (no truncation)
+          grep -q '"item-4999"' <<<"$CONTENT"
+
+      - name: 🧪 Test UTF-8 BOM, fail-on-invalid-json=false
+        id: t-bom
+        uses: ./
+        with:
+          file-path: test-data/bom.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify UTF-8 BOM is reported invalid
+        env:
+          OUTCOME: ${{ steps.t-bom.outcome }}
+          FILE_EXISTS: ${{ steps.t-bom.outputs.file-exists }}
+          IS_VALID: ${{ steps.t-bom.outputs.is-valid-json }}
+          CONTENT: ${{ steps.t-bom.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "UTF-8 BOM" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+          verify_raw_content_matches_file test-data/bom.json CONTENT
+
+      - name: 🧪 Test invalid UTF-8 bytes, fail-on-invalid-json=false
+        id: t-invalid-utf8
+        uses: ./
+        with:
+          file-path: test-data/invalid-utf8.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify invalid UTF-8 bytes is reported invalid
+        env:
+          OUTCOME: ${{ steps.t-invalid-utf8.outcome }}
+          FILE_EXISTS: ${{ steps.t-invalid-utf8.outputs.file-exists }}
+          IS_VALID: ${{ steps.t-invalid-utf8.outputs.is-valid-json }}
+          CONTENT: ${{ steps.t-invalid-utf8.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "invalid UTF-8 bytes" "success" "$OUTCOME"
+          verify_file_exists "$FILE_EXISTS"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+
+      - name: 🧪 Test path with ./ prefix
+        id: t-dotslash
+        uses: ./
+        with:
+          file-path: ./test-data/single-line.json
+
+      - name: ✓ Verify path with ./ prefix
+        env:
+          FILE_EXISTS: ${{ steps.t-dotslash.outputs.file-exists }}
+          IS_VALID: ${{ steps.t-dotslash.outputs.is-valid-json }}
+          CONTENT: ${{ steps.t-dotslash.outputs.json-content }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          run_basic_validation "$FILE_EXISTS" "$IS_VALID"
+          verify_content_matches_file test-data/single-line.json CONTENT
+
       # -----------------------------------------------------------------------
       # Invalid / empty files, fail-on-invalid-json=false (must NOT fail)
       # -----------------------------------------------------------------------

@@ -1,0 +1,4 @@
+# Keep test fixtures byte-exact (CRLF, BOM, invalid UTF-8)
+test-data/crlf.json -text
+test-data/bom.json -text
+test-data/invalid-utf8.json -text
