@@ -19,18 +19,17 @@ both Linux and macOS runners.
 
 ## 📋 Inputs
 
-| Input                  | Required | Default | Description                                                                                                                  |
-| ---------------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `file-path`            | ✅ Yes   | -       | Path to the JSON file relative to the repository root (e.g., `config.json`, `data/settings.json`)                            |
-| `fail-on-invalid-json` | ❌ No    | `true`  | Whether to fail if the file contains invalid JSON. When `false`, the action will succeed but `is-valid-json` will be `false` |
+| Input           | Required | Default | Description                                                                                                                                                         |
+| --------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `file-path`     | ✅ Yes   | -       | Path to the JSON file. Relative paths are resolved from the step's working directory. Must not be empty or contain a newline                                        |
+| `fail-on-error` | ❌ No    | `true`  | `true` or `false`. When `false`, a problem with the file (missing, not a regular file, unreadable, over 1 MiB, invalid JSON) becomes a warning instead of a failure |
 
 ## 📤 Outputs
 
-| Output          | Description                                                                             |
-| --------------- | --------------------------------------------------------------------------------------- |
-| `json-content`  | The complete JSON content as a string. Use `fromJSON()` to parse it in subsequent steps |
-| `file-exists`   | Boolean indicating whether the file exists (`true` or `false`)                          |
-| `is-valid-json` | Boolean indicating whether the file contains valid JSON (`true` or `false`)             |
+| Output          | Description                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `is-valid-json` | `true` if the file was read and is valid JSON, otherwise `false`. Always set, including on failure                                   |
+| `json-content`  | The file text without one trailing newline. Empty unless `is-valid-json` is `true`. Use `fromJSON()` to parse it in subsequent steps |
 
 ## 📖 Usage
 
@@ -55,7 +54,7 @@ jobs:
 
       - name: Display the content
         run: |
-          echo "File exists: ${{ steps.read-json.outputs.file-exists }}"
+          echo "Valid JSON: ${{ steps.read-json.outputs.is-valid-json }}"
           echo "Valid JSON: ${{ steps.read-json.outputs.is-valid-json }}"
           echo "Content: ${{ steps.read-json.outputs.json-content }}"
 ```
@@ -110,7 +109,7 @@ jobs:
   uses: durandtibo/read-json-action@v0.1
   with:
     file-path: "data.json"
-    fail-on-invalid-json: false
+    fail-on-error: false
 
 - name: Check validity
   run: |
@@ -153,9 +152,12 @@ jobs:
 
 The action will **fail** in the following scenarios:
 
-1. **File not found** - If the specified file doesn't exist at the given path
-2. **Invalid JSON** - If `fail-on-invalid-json` is `true` (default) and the file contains invalid
-   JSON syntax
+1. **File problem** - The file is missing, is not a regular file, is not readable or is over 1 MiB,
+   and `fail-on-error` is `true` (default)
+2. **Invalid JSON** - The file is not strict RFC 8259 JSON in UTF-8 and `fail-on-error` is `true`
+   (default)
+3. **Caller mistake** - An empty `file-path`, a `file-path` with a newline, a `fail-on-error`
+   other than `true` or `false`, or no `python3`. These fail whatever `fail-on-error` says
 
 You can check the outputs to handle these scenarios gracefully:
 
@@ -165,18 +167,11 @@ You can check the outputs to handle these scenarios gracefully:
   uses: durandtibo/read-json-action@v0.1
   with:
     file-path: "config.json"
-    fail-on-invalid-json: false
-  continue-on-error: true
+    fail-on-error: false
 
 - name: Handle errors
-  if: always()
-  run: |
-    if [ "${{ steps.read-json.outputs.file-exists }}" != "true" ]; then
-      echo "❌ File does not exist"
-      exit 1
-    elif [ "${{ steps.read-json.outputs.is-valid-json }}" != "true" ]; then
-      echo "⚠️ Invalid JSON, using defaults"
-    fi
+  if: steps.read-json.outputs.is-valid-json != 'true'
+  run: echo "⚠️ No usable JSON, using defaults"
 ```
 
 ## 💡 Tips and Best Practices

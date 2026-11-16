@@ -6,7 +6,8 @@
 #
 # Jobs:
 #   get-cases       reads test-data/cases.json
-#   cases           one job per case and per runner of the shared OS matrix
+#   cases           one job per case and per runner of the shared OS matrix. Generated
+#                   fixtures are created first by scripts/setup-fixtures.sh
 #   python-compat   cases flagged "python-compat" on the oldest and newest Python
 #   fromjson-compat valid fixtures must parse with fromJSON()
 #   log-injection   file content must never create annotations (log injection)
@@ -82,14 +83,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
+      # Fixtures that cannot be committed (over-size, unreadable, a file named "-n").
+      - name: Create generated fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/setup-fixtures.sh
+
       - name: 🧪 Run the action (this checkout)
         id: local
         if: ${{ !inputs.use-released }}
         uses: ./
         with:
           file-path: ${{ matrix.case['file-path'] }}
-          fail-on-invalid-json: ${{ matrix.case['fail-on-invalid-json'] || 'true' }}
+          fail-on-error: ${{ matrix.case['fail-on-error'] || 'true' }}
         continue-on-error: true
+        env:
+          LC_ALL: ${{ matrix.case['lc-all'] }}
 
       - name: 🧪 Run the action (released)
         id: released
@@ -97,19 +107,18 @@ jobs:
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
         with:
           file-path: ${{ matrix.case['file-path'] }}
-          fail-on-invalid-json: ${{ matrix.case['fail-on-invalid-json'] || 'true' }}
+          fail-on-error: ${{ matrix.case['fail-on-error'] || 'true' }}
         continue-on-error: true
+        env:
+          LC_ALL: ${{ matrix.case['lc-all'] }}
 
       - name: ✓ Verify the case
         env:
           CASE_ID: ${{ matrix.case.id }}
           FILE_PATH: ${{ matrix.case['file-path'] }}
           EXPECT_OUTCOME: ${{ matrix.case['expect-outcome'] }}
-          EXPECT_EXISTS: ${{ matrix.case['expect-exists'] }}
           EXPECT_VALID: ${{ matrix.case['expect-valid'] }}
-          EXPECT_CONTENT: ${{ matrix.case['expect-content'] }}
           OUTCOME: ${{ inputs.use-released && steps.released.outcome || steps.local.outcome }}
-          FILE_EXISTS: ${{ steps.local.outputs.file-exists || steps.released.outputs.file-exists }}
           IS_VALID: ${{ steps.local.outputs.is-valid-json || steps.released.outputs.is-valid-json }}
           CONTENT: ${{ steps.local.outputs.json-content || steps.released.outputs.json-content }}
         run: |
@@ -150,7 +159,7 @@ jobs:
         uses: ./
         with:
           file-path: ${{ matrix.case['file-path'] }}
-          fail-on-invalid-json: ${{ matrix.case['fail-on-invalid-json'] || 'true' }}
+          fail-on-error: ${{ matrix.case['fail-on-error'] || 'true' }}
         continue-on-error: true
 
       - name: 🧪 Run the action (released)
@@ -159,7 +168,7 @@ jobs:
         uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
         with:
           file-path: ${{ matrix.case['file-path'] }}
-          fail-on-invalid-json: ${{ matrix.case['fail-on-invalid-json'] || 'true' }}
+          fail-on-error: ${{ matrix.case['fail-on-error'] || 'true' }}
         continue-on-error: true
 
       - name: ✓ Verify the case
@@ -167,11 +176,8 @@ jobs:
           CASE_ID: ${{ matrix.case.id }}
           FILE_PATH: ${{ matrix.case['file-path'] }}
           EXPECT_OUTCOME: ${{ matrix.case['expect-outcome'] }}
-          EXPECT_EXISTS: ${{ matrix.case['expect-exists'] }}
           EXPECT_VALID: ${{ matrix.case['expect-valid'] }}
-          EXPECT_CONTENT: ${{ matrix.case['expect-content'] }}
           OUTCOME: ${{ inputs.use-released && steps.released.outcome || steps.local.outcome }}
-          FILE_EXISTS: ${{ steps.local.outputs.file-exists || steps.released.outputs.file-exists }}
           IS_VALID: ${{ steps.local.outputs.is-valid-json || steps.released.outputs.is-valid-json }}
           CONTENT: ${{ steps.local.outputs.json-content || steps.released.outputs.json-content }}
         run: |
