@@ -2,3 +2,12 @@
 test-data/crlf.json -text
 test-data/bom.json -text
 test-data/latin1.json -text
+
+# Archives (what `uses: owner/repo@ref` downloads) only ship what the action needs.
+# Everything else (tests, fixtures, workflows, tooling) is left out. Last match wins.
+* export-ignore
+/action.yaml -export-ignore
+/LICENSE -export-ignore
+/scripts -export-ignore
+/scripts/* export-ignore
+/scripts/validate-json.py -export-ignore
