@@ -8,7 +8,8 @@
 #   get-cases       reads test-data/cases.json
 #   cases           one job per case and per runner of the shared OS matrix. Generated
 #                   fixtures are created first by scripts/setup-fixtures.sh
-#   python-compat   cases flagged "python-compat" on the oldest and newest Python
+#   python-compat   cases flagged "python-compat" on every runner of the shared OS matrix,
+#                   with the oldest and newest Python of the shared Python list
 #   fromjson-compat valid fixtures must parse with fromJSON()
 #   log-injection   file content must never create annotations (log injection)
 #
@@ -140,7 +141,7 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJson(inputs.test-matrix).os_matrix }}
         python-version: ${{ fromJson(needs.get-cases.outputs.python-versions) }}
         case: ${{ fromJson(needs.get-cases.outputs.compat-cases) }}
 
