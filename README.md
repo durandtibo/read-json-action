@@ -4,243 +4,136 @@
 [![Nightly Tests](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml/badge.svg)](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/durandtibo/read-json-action/blob/main/LICENSE)
 
-A GitHub composite action to read and validate JSON files from your repository. Works seamlessly on
-both Linux and macOS runners.
+A GitHub composite action that reads one JSON file from disk, checks that it is valid JSON, and
+exposes its text and a validity flag as step outputs. It works on Linux and macOS runners, needs
+only `bash` and the `python3` that GitHub-hosted runners already have, and does not parse, query
+or transform the content: use `fromJSON()` for that.
 
-## 🚀 Features
-
-- ✅ **Simple JSON file reading** - Read any JSON file from your repository
-- 🔍 **Automatic validation** - Validates JSON syntax with Python's built-in `json` module
-- 🖥️ **Cross-platform** - Works on both Linux and macOS runners
-- 📊 **Helpful outputs** - Provides file existence, validity status, and content
-- 🎯 **Easy integration** - Use with `fromJSON()` to parse the content in subsequent steps
-- 🔒 **Injection-safe** - File content is never interpolated into shell commands or workflow expressions
-- 💡 **Debug-friendly** - Shows the file size in logs, never the file content
-
-## 📋 Inputs
+## Inputs
 
 | Input           | Required | Default | Description                                                                                                                                                         |
 | --------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `file-path`     | ✅ Yes   | -       | Path to the JSON file. Relative paths are resolved from the step's working directory. Must not be empty or contain a newline                                        |
-| `fail-on-error` | ❌ No    | `true`  | `true` or `false`. When `false`, a problem with the file (missing, not a regular file, unreadable, over 1 MiB, invalid JSON) becomes a warning instead of a failure |
+| `file-path`     | yes      | -       | Path to the JSON file. Relative paths are resolved from the step's working directory. Must not be empty or contain a newline                                        |
+| `fail-on-error` | no       | `true`  | `true` or `false`. When `false`, a problem with the file (missing, not a regular file, unreadable, over 1 MiB, invalid JSON) becomes a warning instead of a failure |
 
-## 📤 Outputs
+Any other value for `fail-on-error` fails the step, whatever the setting.
 
-| Output          | Description                                                                                                                          |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `is-valid-json` | `true` if the file was read and is valid JSON, otherwise `false`. Always set, including on failure                                   |
-| `json-content`  | The file text without one trailing newline. Empty unless `is-valid-json` is `true`. Use `fromJSON()` to parse it in subsequent steps |
+## Outputs
 
-## 📖 Usage
+| Output          | Description                                                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `is-valid-json` | `true` if the file was read and is valid JSON, otherwise `false`. Always set, including when the step fails                               |
+| `json-content`  | The file text, byte for byte, without one trailing newline. Empty if and only if `is-valid-json` is `false`. Safe to pass to `fromJSON()` |
 
-### Basic Example
+## Quick start
+
+Run `actions/checkout` first, so the file is on the runner.
 
 ```yaml
-name: Read Configuration
-on: [push]
+steps:
+  - uses: actions/checkout@v7
 
-jobs:
-  read-config:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+  - id: config
+    uses: durandtibo/read-json-action@v0.2
+    with:
+      file-path: config.json
 
-      - name: Read JSON file
-        id: read-json
-        uses: durandtibo/read-json-action@v0.1
-        with:
-          file-path: "config.json"
-
-      - name: Display the content
-        run: |
-          echo "Valid JSON: ${{ steps.read-json.outputs.is-valid-json }}"
-          echo "Valid JSON: ${{ steps.read-json.outputs.is-valid-json }}"
-          echo "Content: ${{ steps.read-json.outputs.json-content }}"
+  - name: Deploy
+    env:
+      APP_NAME: ${{ fromJSON(steps.config.outputs.json-content).app_name }}
+    run: ./deploy.sh "$APP_NAME"
 ```
 
-### Parse JSON with `fromJSON()`
+## Reading values safely
+
+Pass every value to a script through `env:` and use it as `"$VAR"`. Never write
+`${{ ... }}` inside `run:`: a value with a quote or a `$(...)` would be run as code. Read the
+content once into an `env:` variable if you need several fields:
 
 ```yaml
-- name: Read configuration
-  id: config
-  uses: durandtibo/read-json-action@v0.1
-  with:
-    file-path: "config/settings.json"
-
-- name: Use parsed values
+- name: Use several fields
+  env:
+    CONFIG: ${{ steps.config.outputs.json-content }}
   run: |
-    echo "App name: ${{ fromJSON(steps.config.outputs.json-content).app_name }}"
-    echo "Version: ${{ fromJSON(steps.config.outputs.json-content).version }}"
-    echo "Debug mode: ${{ fromJSON(steps.config.outputs.json-content).debug }}"
+    set -euo pipefail
+    name="$(jq -r '.app_name' <<<"$CONFIG")"
+    version="$(jq -r '.version' <<<"$CONFIG")"
+    echo "Deploying $name $version"
 ```
 
-### Example JSON file (`config/settings.json`)
+## Tolerating errors
 
-```json
-{
-  "app_name": "my-application",
-  "version": "1.2.3",
-  "debug": true,
-  "features": ["auth", "api", "dashboard"]
-}
-```
-
-### Access nested values
+With `fail-on-error: false` the step succeeds and `is-valid-json` tells whether the content can be
+used. Test it in an `if:`:
 
 ```yaml
-- name: Read package.json
-  id: package
-  uses: durandtibo/read-json-action@v0.1
+- id: optional
+  uses: durandtibo/read-json-action@v0.2
   with:
-    file-path: "package.json"
-
-- name: Get dependencies
-  run: |
-    echo "Package name: ${{ fromJSON(steps.package.outputs.json-content).name }}"
-    echo "Node version: ${{ fromJSON(steps.package.outputs.json-content).engines.node }}"
-```
-
-### Continue on invalid JSON
-
-```yaml
-- name: Read potentially invalid JSON
-  id: read-json
-  uses: durandtibo/read-json-action@v0.1
-  with:
-    file-path: "data.json"
+    file-path: optional.json
     fail-on-error: false
 
-- name: Check validity
-  run: |
-    if [ "${{ steps.read-json.outputs.is-valid-json }}" = "true" ]; then
-      echo "✅ JSON is valid, processing..."
-      echo '${{ steps.read-json.outputs.json-content }}' | jq '.key'
-    else
-      echo "⚠️ JSON is invalid, using defaults..."
-    fi
+- name: Use the file
+  if: steps.optional.outputs.is-valid-json == 'true'
+  env:
+    LEVEL: ${{ fromJSON(steps.optional.outputs.json-content).level }}
+  run: echo "Level is $LEVEL"
+
+- name: Use the defaults
+  if: steps.optional.outputs.is-valid-json != 'true'
+  run: echo "No usable optional.json, using defaults"
 ```
 
-### Conditional steps based on JSON content
+A caller mistake (empty `file-path`, a bad `fail-on-error`, no `python3`) always fails.
 
-```yaml
-- name: Read feature flags
-  id: features
-  uses: durandtibo/read-json-action@v0.1
-  with:
-    file-path: "features.json"
+## Behaviour
 
-- name: Deploy to staging
-  if: fromJSON(steps.features.outputs.json-content).deploy_staging == true
-  run: |
-    echo "Deploying to staging..."
+- **Checks, in order:** the file exists, is a regular file (a symlink to one is fine), is readable,
+  is at most 1,048,576 bytes (the GitHub step output limit), and is valid JSON. The first problem is
+  reported.
+- **Valid** means strict RFC 8259 in UTF-8: no BOM, no `NaN` or `Infinity`, no trailing data, no
+  comments. Any top-level value is allowed. Large numbers are checked for syntax only and are not
+  converted.
+- **Newline:** `json-content` is the file text minus one trailing newline, whether the file has one
+  or not.
+- **Path:** relative paths start from the step's working directory, so `actions/checkout` must run
+  first. The action does not restrict where `file-path` points. If a workflow builds the path from
+  untrusted input, the workflow must check it first.
+- **Log:** one line with the path, size and result. The file content is never printed.
 
-- name: Run integration tests
-  if: fromJSON(steps.features.outputs.json-content).run_integration_tests == true
-  run: |
-    echo "Running integration tests..."
-```
+## Security
 
-## 🔧 Requirements
+- Inputs reach scripts only through `env:`. File content is read from disk and never interpolated
+  into a script or an expression.
+- File content is never printed to the log, so a line such as `::error::...` in a file cannot run
+  a workflow command, and secrets in a file are not leaked by the action.
+- Once you use a value in a later step, you are responsible for passing it through `env:` (see
+  [Reading values safely](#reading-values-safely)).
 
-- The action requires the JSON file to exist in your repository
-- The file must be checked out before using this action (use `actions/checkout@v7`)
-- For parsing the JSON content, use GitHub Actions' built-in `fromJSON()` function
-- The runner must have Python 3 available (preinstalled on GitHub-hosted Linux and macOS runners)
+## Release notes
 
-## ⚠️ Error Handling
+### v0.2 (breaking)
 
-The action will **fail** in the following scenarios:
+| Change                                                   | Migration                                                                                                    |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Input `fail-on-invalid-json` renamed to `fail-on-error`  | Rename the key. It now also tolerates a missing file, a directory, an unreadable file and an over-size file. |
+| Output `file-exists` removed                             | Use `is-valid-json`. In strict mode the step already failed when the file was missing.                       |
+| `fail-on-error` rejects values other than `true`/`false` | Fix typos. Such values used to turn validation off silently.                                                 |
+| `json-content` is empty for invalid files                | Test `is-valid-json` before using the content.                                                               |
+| `json-content` loses one trailing newline, consistently  | Nothing for `fromJSON()` users. Compare exact text only if you relied on the old inconsistency.              |
+| `NaN`, `Infinity`, BOM and non-UTF-8 files are invalid   | Fix the files. `fromJSON()` rejected them anyway.                                                            |
+| No content preview in the log                            | Read the file in a later step if you need it, and mask secrets yourself.                                     |
 
-1. **File problem** - The file is missing, is not a regular file, is not readable or is over 1 MiB,
-   and `fail-on-error` is `true` (default)
-2. **Invalid JSON** - The file is not strict RFC 8259 JSON in UTF-8 and `fail-on-error` is `true`
-   (default)
-3. **Caller mistake** - An empty `file-path`, a `file-path` with a newline, a `fail-on-error`
-   other than `true` or `false`, or no `python3`. These fail whatever `fail-on-error` says
+Releases are immutable exact version tags (`v0.2`, ...). There are no floating tags such as `v1`.
 
-You can check the outputs to handle these scenarios gracefully:
-
-```yaml
-- name: Read JSON file
-  id: read-json
-  uses: durandtibo/read-json-action@v0.1
-  with:
-    file-path: "config.json"
-    fail-on-error: false
-
-- name: Handle errors
-  if: steps.read-json.outputs.is-valid-json != 'true'
-  run: echo "⚠️ No usable JSON, using defaults"
-```
-
-## 💡 Tips and Best Practices
-
-### Avoid repeated `fromJSON()` calls
-
-If you need to access multiple values from the JSON, consider storing the parsed object:
-
-```yaml
-- name: Read config
-  id: config
-  uses: durandtibo/read-json-action@v0.1
-  with:
-    file-path: "config.json"
-
-- name: Set variables
-  id: vars
-  run: |
-    echo "app-name=${{ fromJSON(steps.config.outputs.json-content).app_name }}" >> $GITHUB_OUTPUT
-    echo "version=${{ fromJSON(steps.config.outputs.json-content).version }}" >> $GITHUB_OUTPUT
-
-- name: Use variables
-  run: |
-    echo "Deploying ${{ steps.vars.outputs.app-name }} v${{ steps.vars.outputs.version }}"
-```
-
-### Use with environment variables
-
-```yaml
-- name: Read config
-  id: config
-  uses: durandtibo/read-json-action@v0.1
-  with:
-    file-path: "config.json"
-
-- name: Set environment
-  run: |
-    echo "APP_NAME=${{ fromJSON(steps.config.outputs.json-content).app_name }}" >> $GITHUB_ENV
-    echo "APP_VERSION=${{ fromJSON(steps.config.outputs.json-content).version }}" >> $GITHUB_ENV
-
-- name: Use environment variables
-  run: |
-    echo "Running $APP_NAME version $APP_VERSION"
-```
-
-## 🔒 Security
-
-File content is never interpolated directly into shell commands or workflow expressions inside
-the action; it's only read from disk and passed through `GITHUB_OUTPUT`/environment variables.
-This means JSON content containing shell metacharacters (e.g. `$(...)`, `` `...` ``) is safe
-to read and cannot execute commands on the runner.
-
-That said, once you pull a value out with `fromJSON(...)` inside a subsequent `run:` step, **you**
-are responsible for not interpolating untrusted content directly into a shell command. Prefer
-passing it through `env:` and referencing it as `"$MY_VAR"`, rather than embedding
-`${{ fromJSON(...).field }}` directly in the script body.
-
-## 🙏 Acknowledgments
-
-- Uses Python's built-in `json` module (preinstalled on GitHub-hosted runners) for JSON validation
-- Inspired by the need for simple JSON file handling in GitHub workflows
-
-## 🤝Contributing
+## Contributing
 
 Contributions are welcome! Open an issue or pull request on
 [GitHub](https://github.com/durandtibo/read-json-action). Run `make format` and `make lint`
-before committing.
+before committing. To add a test, add a fixture to `test-data/` and a case to
+`test-data/cases.json`.
 
-## 📝 License
+## License
 
 This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file
 for details.
