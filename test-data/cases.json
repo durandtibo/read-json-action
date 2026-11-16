@@ -75,6 +75,36 @@
     "expect-valid": "true"
   },
   {
+    "id": "unicode",
+    "file-path": "test-data/unicode.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "crlf",
+    "file-path": "test-data/crlf.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "deeply-nested",
+    "file-path": "test-data/deeply-nested.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "large-file",
+    "file-path": "test-data/large.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
+    "id": "dot-slash-path",
+    "file-path": "./test-data/single-line.json",
+    "expect-outcome": "success",
+    "expect-valid": "true"
+  },
+  {
     "id": "path-with-spaces",
     "file-path": "test-data/dir with spaces/file name.json",
     "expect-outcome": "success",

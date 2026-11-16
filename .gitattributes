@@ -1,0 +1,4 @@
+# Keep test fixtures byte-exact
+test-data/crlf.json -text
+test-data/bom.json -text
+test-data/latin1.json -text
