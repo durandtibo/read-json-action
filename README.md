@@ -15,7 +15,7 @@ both Linux and macOS runners.
 - 📊 **Helpful outputs** - Provides file existence, validity status, and content
 - 🎯 **Easy integration** - Use with `fromJSON()` to parse the content in subsequent steps
 - 🔒 **Injection-safe** - File content is never interpolated into shell commands or workflow expressions
-- 💡 **Debug-friendly** - Shows file size and content preview in logs
+- 💡 **Debug-friendly** - Shows the file size in logs, never the file content
 
 ## 📋 Inputs
 
