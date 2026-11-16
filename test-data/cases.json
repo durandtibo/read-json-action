@@ -1,0 +1,280 @@
+[
+  {
+    "id": "single-line",
+    "file-path": "test-data/single-line.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "multi-line",
+    "file-path": "test-data/multi-line.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file",
+    "python-compat": true
+  },
+  {
+    "id": "nested",
+    "file-path": "test-data/nested.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "special-chars",
+    "file-path": "test-data/special-chars.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "empty-object",
+    "file-path": "test-data/empty.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "empty-array",
+    "file-path": "test-data/empty-array.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "top-level-array",
+    "file-path": "test-data/array.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "top-level-string",
+    "file-path": "test-data/scalar-string.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "top-level-number",
+    "file-path": "test-data/scalar-number.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "top-level-null",
+    "file-path": "test-data/scalar-null.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "large-numbers",
+    "file-path": "test-data/large-numbers.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file",
+    "python-compat": true,
+    "skip-fromjson": true
+  },
+  {
+    "id": "no-trailing-newline",
+    "file-path": "test-data/no-trailing-newline.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "path-with-spaces",
+    "file-path": "test-data/dir with spaces/file name.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "delimiter-collision",
+    "file-path": "test-data/delimiter-collision.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "injection-attempt",
+    "file-path": "test-data/injection-attempt.json",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "true",
+    "expect-content": "file"
+  },
+  {
+    "id": "invalid-tolerant",
+    "file-path": "test-data/invalid.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file",
+    "python-compat": true
+  },
+  {
+    "id": "empty-file-tolerant",
+    "file-path": "test-data/empty-file.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file"
+  },
+  {
+    "id": "whitespace-only-tolerant",
+    "file-path": "test-data/whitespace-only.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file"
+  },
+  {
+    "id": "trailing-comma-tolerant",
+    "file-path": "test-data/trailing-comma.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file"
+  },
+  {
+    "id": "single-quotes-tolerant",
+    "file-path": "test-data/single-quotes.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file"
+  },
+  {
+    "id": "truncated-tolerant",
+    "file-path": "test-data/truncated.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file"
+  },
+  {
+    "id": "trailing-data-tolerant",
+    "file-path": "test-data/trailing-data.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file"
+  },
+  {
+    "id": "log-injection-tolerant",
+    "file-path": "test-data/log-injection.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "success",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "file"
+  },
+  {
+    "id": "invalid-default",
+    "file-path": "test-data/invalid.json",
+    "expect-outcome": "failure",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "any"
+  },
+  {
+    "id": "invalid-explicit-true",
+    "file-path": "test-data/invalid.json",
+    "fail-on-invalid-json": "true",
+    "expect-outcome": "failure",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "any"
+  },
+  {
+    "id": "empty-file-default",
+    "file-path": "test-data/empty-file.json",
+    "expect-outcome": "failure",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "any"
+  },
+  {
+    "id": "whitespace-only-default",
+    "file-path": "test-data/whitespace-only.json",
+    "expect-outcome": "failure",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "any"
+  },
+  {
+    "id": "trailing-data-default",
+    "file-path": "test-data/trailing-data.json",
+    "expect-outcome": "failure",
+    "expect-exists": "true",
+    "expect-valid": "false",
+    "expect-content": "any"
+  },
+  {
+    "id": "missing-file",
+    "file-path": "test-data/does-not-exist.json",
+    "expect-outcome": "failure",
+    "expect-exists": "false",
+    "expect-valid": "",
+    "expect-content": "empty"
+  },
+  {
+    "id": "missing-file-tolerant",
+    "file-path": "test-data/does-not-exist.json",
+    "fail-on-invalid-json": "false",
+    "expect-outcome": "failure",
+    "expect-exists": "false",
+    "expect-valid": "",
+    "expect-content": "empty"
+  },
+  {
+    "id": "directory",
+    "file-path": "test-data/a-directory.json",
+    "expect-outcome": "failure",
+    "expect-exists": "false",
+    "expect-valid": "",
+    "expect-content": "empty"
+  },
+  {
+    "id": "empty-path",
+    "file-path": "",
+    "expect-outcome": "failure",
+    "expect-exists": "false",
+    "expect-valid": "",
+    "expect-content": "empty"
+  },
+  {
+    "id": "shell-metacharacters-in-path",
+    "file-path": "test-data/x$(touch injected-by-path).json",
+    "expect-outcome": "failure",
+    "expect-exists": "false",
+    "expect-valid": "",
+    "expect-content": "empty"
+  }
+]

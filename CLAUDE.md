@@ -35,7 +35,7 @@ injection attempts) those workflows read.
 - Update `README.md` when inputs, outputs, behaviour, or workflows change.
 - Releases are immutable exact version tags (`v0.1`, ...). Do not create or move floating tags
   (`v1`, `latest`) and do not document them as an option. After a release, update the SHA pinned
-  in `nightly-test-released.yaml`.
+  in `ci-action.yaml` (the only place it lives).
 
 ## Action rules (`action.yaml`)
 
@@ -44,6 +44,7 @@ injection attempts) those workflows read.
   `file-exists`, `is-valid-json`) is a breaking change and must be flagged.
 - Pass inputs to scripts through `env:`, never by interpolating them in `run:`.
 - Never interpolate file content into `run:` or workflow expressions; read it from disk.
+- Never print file content to the log.
 - Every `run:` step sets `shell: bash` and starts with `set -euo pipefail`.
 - Pin third-party actions in workflows to commit SHAs with a `# ratchet:<owner>/<repo>@<tag>`
   comment, never to tags or branches.
@@ -63,13 +64,13 @@ Files are prefixed by role:
 - `ci.yaml`: entry point for pull requests, pushes to `main`, a nightly schedule and manual runs.
   It holds no steps, only jobs that call the reusable workflows below.
   - `ci-format.yaml`: Markdown, shell and YAML lint checks (via `make`).
-  - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
-    released yet, on the OS matrix.
+  - `ci-action.yaml`: runs every case of `test-data/cases.json` on the OS matrix, with the action
+    from this checkout (`uses: ./`), i.e. the version not released yet. With `use-released: true`
+    it runs the released action (pinned by SHA) on the same cases.
 - `ci-verify-workflows.yaml`: lints the workflow files themselves. It has its own triggers and is
   not called from `ci.yaml`, so it can be a required check.
-- `nightly.yaml`: scheduled entry point that calls `nightly-test-released.yaml`, which tests the
-  latest released action (pinned by SHA). It mirrors `ci-action.yaml`: keep both in sync. It is
-  not part of `ci.yaml`.
+- `nightly.yaml`: scheduled entry point that calls `ci-action.yaml` with `use-released: true`, which
+  tests the latest released action. It is not part of `ci.yaml`.
 - `lib-get-test-matrix.yaml`: reusable workflow that loads the shared OS matrix from
   `durandtibo/workflow-config-action` once; callers pass it down through the `test-matrix` input.
 - `bot-*.yaml`: scheduled automation that opens PRs or acts on runs (format files, pin actions,
@@ -88,8 +89,8 @@ Conventions:
 ## Tests
 
 - Tests are workflow jobs that run the action on fixtures in `test-data/` and check results with
-  `scripts/test-helper.sh`. Add each new test to both `ci-action.yaml` and
-  `nightly-test-released.yaml`.
+  `scripts/test-helper.sh`. To add a test, add a fixture to `test-data/` and a case to
+  `test-data/cases.json`; do not edit the workflows. `test-helper.sh` holds no fixture knowledge.
 - Add a fixture to `test-data/` for each new case; cover success, failure, and edge cases (empty
   file, missing file, directory, invalid JSON, special characters, injection attempts).
 - Pass outputs to verification scripts through `env:`, never interpolated into the script.
