@@ -43,6 +43,10 @@ committed, and `test-data/` holds the fixtures and the case list `cases.json` th
 - Keep input/output names, defaults, and descriptions consistent with `README.md`. Renaming or
   removing an input or output (`file-path`, `fail-on-error`, `json-content`,
   `is-valid-json`) is a breaking change and must be flagged.
+- Only files the action needs at runtime are exported (`action.yaml`, `LICENSE`,
+  `scripts/validate-json.py`). `.gitattributes` marks everything else `export-ignore`. When the
+  action starts using a new file, un-ignore it there. Never make the action read tests, fixtures or
+  other repo files that are not exported. Check with `git archive --worktree-attributes HEAD | tar t`.
 - Pass inputs to scripts through `env:`, never by interpolating them in `run:`.
 - Never interpolate file content into `run:` or workflow expressions; read it from disk.
 - Never print file content to the log.
