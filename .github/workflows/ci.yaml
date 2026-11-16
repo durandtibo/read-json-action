@@ -39,11 +39,13 @@ jobs:
     permissions:
       contents: read
 
-  # Test the action from the current repository code (not released yet) on multiple OS and Python versions
+  # Test the action from the current repository code (not released yet) on every case of test-data/cases.json and every runner
   action:
     needs: get-matrix
     uses: ./.github/workflows/ci-action.yaml
     with:
       test-matrix: ${{ needs.get-matrix.outputs.test_matrix }}
     permissions:
+      actions: read
+      checks: read
       contents: read
