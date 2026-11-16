@@ -9,17 +9,17 @@ repository.
 These are the properties the target state must keep. Every design choice below is judged against
 them.
 
-| #   | Property                | Statement                                                                                                                                                                           |
-| --- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1  | Single purpose          | Read one JSON file from disk, check that it is valid JSON, and expose its text and a validity flag as step outputs. It does not parse, query or transform the content.              |
-| P2  | Correct contract        | Outputs are exact and documented. `json-content` is the file text, byte for byte, minus one trailing newline. It is non-empty if and only if `is-valid-json` is `true`.             |
-| P3  | Injection-safe          | Inputs reach scripts only through `env:`. File content is never interpolated into a script or expression. It is never printed to the log, so it cannot inject workflow commands.    |
-| P4  | Fails loudly, by choice | A caller bug always fails. A file problem fails by default and is downgraded to a warning only when the caller sets `fail-on-error: false`. Messages use `::error::`/`::warning::`. |
-| P5  | Portable                | Works on GNU/Linux and BSD/macOS runners. Uses only `bash`, POSIX tools (`wc`, `tail`, `od`, `tr`, `cat`) and `python3` from the standard library. No install step, no network.     |
-| P6  | Small and fast          | One composite step, one `python3` process, no external actions, no dependencies. Runtime is dominated by runner step overhead, so fewer steps is the optimisation.                  |
-| P7  | Maintainable            | About 60 lines of bash. One source of truth for each of: input/output names (`action.yaml`), documentation (`README.md`), test cases (`test-data/cases.json`).                      |
-| P8  | Tested without drift    | Every behaviour has a fixture and a case. The same test workflow runs against the local checkout and against the released action, so there is no duplicated copy to keep in sync.   |
-| P9  | Immutable releases      | Exact version tags only (`v0.x`). No floating tags.                                                                                                                                 |
+| #   | Property                | Statement                                                                                                                                                                                                                                                                                 |
+| --- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | Single purpose          | Read one JSON file from disk, check that it is valid JSON, and expose its text and a validity flag as step outputs. It does not parse, query or transform the content.                                                                                                                    |
+| P2  | Correct contract        | Outputs are exact and documented. `json-content` is the file text, byte for byte, minus one trailing newline. It is non-empty if and only if `is-valid-json` is `true`.                                                                                                                   |
+| P3  | Injection-safe          | Inputs reach scripts only through `env:`. File content is never interpolated into a script or expression. It is never printed to the log, so it cannot inject workflow commands.                                                                                                          |
+| P4  | Fails loudly, by choice | A caller bug always fails. A file problem fails by default and is downgraded to a warning only when the caller sets `fail-on-error: false`. Messages use `::error::`/`::warning::`.                                                                                                       |
+| P5  | Portable                | Works on GNU/Linux and BSD/macOS runners. Uses only `bash`, POSIX tools (`wc`, `tail`, `od`, `tr`, `cat`) and `python3` from the standard library. No install step, no network.                                                                                                           |
+| P6  | Small and fast          | Few, short steps with one job each, one `python3` process, no external actions, no dependencies. A step costs a few hundred milliseconds of runner overhead, which is accepted in exchange for P7.                                                                                        |
+| P7  | Maintainable            | Several small steps (at most about 20 lines each) that hand state over through step outputs, so each step can be read, reviewed and changed alone. One source of truth for each of: input/output names (`action.yaml`), documentation (`README.md`), test cases (`test-data/cases.json`). |
+| P8  | Tested without drift    | Every behaviour has a fixture and a case. The same test workflow runs against the local checkout and against the released action, so there is no duplicated copy to keep in sync.                                                                                                         |
+| P9  | Immutable releases      | Exact version tags only (`v0.x`). No floating tags.                                                                                                                                                                                                                                       |
 
 Non-goals: Windows runners, JSON5/JSONC/comments, JSON Schema validation, extracting fields (use
 `fromJSON()` or `jq`), files over 1 MiB (the GitHub step-output limit), and reading from a URL or
@@ -68,10 +68,11 @@ Ordered by impact.
   output
   is `true` whenever the action succeeds. When the action fails, the value is only readable with
   `continue-on-error`. The `file-exists` workaround in the README exists only because of this.
-- **9.** **Four steps for one job.** Check, read, validate and summary are four process starts and
-  four
-  log groups. Splitting them makes the logic harder to follow, because the validity result is
-  needed before deciding whether to expose content.
+- **9.** **The steps do not match the concerns.** The current steps (check, read, validate,
+  summary) are split by chronology, not by responsibility: the validity result is needed before
+  the content is exposed, yet the read step runs first and always exposes it. The summary step
+  mixes reporting with leaking content. The target keeps small steps but cuts them along
+  responsibilities (section 4).
 - **10.** **Wrong or misleading metadata.** The description says "automatic compatibility checking
   for
   your Python version", which the action does not do. `file-path` is documented as "relative to
@@ -138,7 +139,20 @@ flag for missing files (see "Rejected alternatives").
 
 ## 4. Target `action.yaml`
 
-One step, no `id`-chaining between steps, outputs read straight from the step.
+Five small steps. Each has one job, fits on one screen, and passes its result to the next through
+a step output. A later step is skipped, or reads the earlier result, instead of re-checking it.
+
+| Step | `id`      | Job                                                                | Output            |
+| ---- | --------- | ------------------------------------------------------------------ | ----------------- |
+| 1    | `inputs`  | Reject caller mistakes (empty path, newline, bad flag, no python3) | -                 |
+| 2    | `file`    | Check the file exists, is regular, readable and within the limit   | `problem`, `size` |
+| 3    | `json`    | Validate the syntax. Skipped if step 2 found a problem             | `problem`         |
+| 4    | `result`  | Merge the problems, set `is-valid-json`, fail or warn              | `is-valid-json`   |
+| 5    | `content` | Write `json-content`. Runs only when `is-valid-json` is `true`     | `json-content`    |
+
+`problem` is an empty string when there is nothing wrong. Because step 4 is the only step that
+decides between failing and warning, `fail-on-error` is read in exactly one place. `is-valid-json`
+falls back to `false` when an earlier step failed (a caller mistake), so it always has a value.
 
 ```yaml
 name: "read-json-file"
@@ -163,18 +177,19 @@ inputs:
 outputs:
   is-valid-json:
     description: '"true" if the file is valid JSON, otherwise "false"'
-    value: ${{ steps.read.outputs.is-valid-json }}
+    value: ${{ steps.result.outputs.is-valid-json || 'false' }}
   json-content:
     description: |
       The file text without its trailing newline. Empty unless is-valid-json is "true".
       Use fromJSON() to parse it
-    value: ${{ steps.read.outputs.json-content }}
+    value: ${{ steps.content.outputs.json-content }}
 
 runs:
   using: "composite"
   steps:
-    - name: Read and validate JSON file
-      id: read
+    # Step 1: caller mistakes always fail, whatever fail-on-error says.
+    - name: Check inputs
+      id: inputs
       shell: bash
       env:
         FILE_PATH: ${{ inputs.file-path }}
@@ -182,12 +197,11 @@ runs:
       run: |
         set -euo pipefail
 
-        # Caller mistakes always fail, whatever fail-on-error says.
         die() {
           echo "::error::$1"
-          echo "is-valid-json=false" >> "$GITHUB_OUTPUT"
           exit 1
         }
+
         [ -n "$FILE_PATH" ] || die "file-path must not be empty"
         case "$FILE_PATH" in *$'\n'* | *$'\r'*) die "file-path must not contain a newline" ;; esac
         case "$FAIL_ON_ERROR" in
@@ -196,9 +210,18 @@ runs:
         esac
         command -v python3 > /dev/null || die "python3 is required but was not found"
 
-        # First problem wins. An empty $problem means the file is usable.
+    # Step 2: file-level problems. Reports the first one and never fails by itself.
+    - name: Check file
+      id: file
+      shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
+      run: |
+        set -euo pipefail
+
         limit=1048576 # GitHub step output limit (1 MiB)
         problem=""
+        size=0
         if [ ! -e "$FILE_PATH" ]; then
           problem="File not found: $FILE_PATH"
         elif [ ! -f "$FILE_PATH" ]; then
@@ -209,54 +232,111 @@ runs:
           size="$(wc -c < "$FILE_PATH")"
           size=$((size)) # BSD wc pads with spaces
           if [ "$size" -gt "$limit" ]; then
-            problem="File is $size bytes, over the $limit byte output limit: $FILE_PATH"
-          elif ! reason="$(python3 -I -c '
-        import json, sys
-
-        def reject(constant):
-            raise ValueError("invalid constant " + constant)
-
-        try:
-            with open(sys.argv[1], encoding="utf-8") as f:
-                json.load(f, parse_constant=reject)
-        except (ValueError, OSError) as e:  # JSONDecodeError and UnicodeDecodeError are ValueErrors
-            print(type(e).__name__ + ": " + str(e))
-            sys.exit(1)
-        ' "$FILE_PATH" 2>&1)"; then
-            problem="Invalid JSON in $FILE_PATH (${reason//$'\n'/ })"
+            problem="File is $size bytes, over the $limit byte limit: $FILE_PATH"
           fi
         fi
 
-        if [ -n "$problem" ]; then
-          echo "is-valid-json=false" >> "$GITHUB_OUTPUT"
-          if [ "$FAIL_ON_ERROR" = "true" ]; then
-            echo "::error::$problem"
-            exit 1
-          fi
-          echo "::warning::$problem"
+        {
+          echo "problem=$problem"
+          echo "size=$size"
+        } >> "$GITHUB_OUTPUT"
+
+    # Step 3: syntax. The checker prints one line on failure and never the file content.
+    - name: Validate JSON syntax
+      id: json
+      if: steps.file.outputs.problem == ''
+      shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
+      run: |
+        set -euo pipefail
+
+        problem=""
+        if ! reason="$(python3 -I "$GITHUB_ACTION_PATH/scripts/validate-json.py" "$FILE_PATH" 2>&1)"; then
+          problem="Invalid JSON in $FILE_PATH (${reason//$'\n'/ })"
+        fi
+        echo "problem=$problem" >> "$GITHUB_OUTPUT"
+
+    # Step 4: the only step that decides between failing and warning.
+    - name: Report result
+      id: result
+      shell: bash
+      env:
+        PROBLEM: ${{ steps.file.outputs.problem || steps.json.outputs.problem }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "$PROBLEM" ]; then
+          echo "is-valid-json=true" >> "$GITHUB_OUTPUT"
           exit 0
         fi
+
+        echo "is-valid-json=false" >> "$GITHUB_OUTPUT"
+        if [ "$FAIL_ON_ERROR" = "true" ]; then
+          echo "::error::$PROBLEM"
+          exit 1
+        fi
+        echo "::warning::$PROBLEM"
+
+    # Step 5: only reached for a valid file. Content is never printed.
+    - name: Expose content
+      id: content
+      if: steps.result.outputs.is-valid-json == 'true'
+      shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file-path }}
+        SIZE: ${{ steps.file.outputs.size }}
+      run: |
+        set -euo pipefail
 
         # The delimiter is random, so no file content can end the output early.
         delimiter="ghadelimiter_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
         {
-          echo "is-valid-json=true"
           echo "json-content<<$delimiter"
           cat -- "$FILE_PATH"
           # $(...) strips a trailing newline, so this adds one only if the file lacks it.
           [ -z "$(tail -c 1 "$FILE_PATH")" ] || echo
           echo "$delimiter"
         } >> "$GITHUB_OUTPUT"
-        echo "Read $FILE_PATH ($size bytes, valid JSON)"
+        echo "Read $FILE_PATH ($SIZE bytes, valid JSON)"
+```
+
+`scripts/validate-json.py` (the one extra file; it can be run and tested alone):
+
+```python
+"""Exit 0 if the file is strict RFC 8259 JSON in UTF-8. Otherwise print one line and exit 1."""
+
+import json
+import sys
+
+
+def reject(constant):
+    raise ValueError("invalid constant " + constant)
+
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        json.load(f, parse_constant=reject)
+except (ValueError, OSError) as e:  # JSONDecodeError and UnicodeDecodeError are ValueErrors
+    print(type(e).__name__ + ": " + str(e))
+    sys.exit(1)
 ```
 
 Notes on the sketch:
 
-- The inline Python is indented inside the YAML block. Keep it that way, because `shfmt` leaves
-  string contents alone. If it grows beyond about 10 lines, move it to
-  `scripts/validate-json.py` and call it with `"$GITHUB_ACTION_PATH/scripts/validate-json.py"`.
-- No `uuidgen`, no second Python process, no `mktemp`/`trap`, and no stderr file. The error text is
-  captured with `$(...)`.
+- Steps 2 and 3 never fail: they report a `problem`. Only steps 1 and 4 call `exit 1`, so there are
+  two places to look when the action fails and one place that reads `fail-on-error`.
+- Step 3 is skipped when step 2 found a problem, so `steps.json.outputs.problem` is empty then
+  and `steps.file.outputs.problem || steps.json.outputs.problem` picks the right one.
+- Step 5 is skipped on any problem, so `json-content` is unset exactly when `is-valid-json` is
+  `false`. No step has to remember to blank it.
+- `problem` values come from the path and from a one-line Python message, never from file content
+  beyond what `UnicodeDecodeError` reports (byte values and a position), so they are safe to pass
+  through `env:` and `GITHUB_OUTPUT`.
+- Moving Python to `scripts/validate-json.py` keeps the YAML free of quoting tricks and makes the
+  validator runnable on a fixture without GitHub Actions.
+- No `uuidgen`, no second Python process, no `mktemp`/`trap`.
 - Python stays the validator because it is on every GitHub-hosted runner, and `-I` stops it from
   loading anything from the working directory. `jq` is the alternative and is also preinstalled,
   but the two disagree on large numbers and `NaN`, and Python gives clearer error messages.
@@ -420,6 +500,10 @@ Changes:
 
 ## 8. Rejected alternatives
 
+- **One big step.** Fewer process starts, but one 60-line script mixes input checks, file checks,
+  validation, reporting and output writing, and a change to one concern needs the whole script in
+  your head. Small steps cost a few hundred milliseconds each and are easier to read, review and
+  change. The preference is for small steps.
 - **Keep `file-exists` and add `fail-on-missing-file`.** Two flags and three states for one job.
   The single `fail-on-error` flag plus `is-valid-json` answers the real question ("can I use this
   content?"). If a "file is optional" case appears that needs to be told apart from "invalid", add
@@ -429,7 +513,7 @@ Changes:
   second pass over the data. Exact text is a simpler contract.
 - **A JavaScript or Docker action.** It is faster to author in TypeScript with a typed API, but it
   adds a build step, a `dist/` directory to keep in sync, and (for Docker) a slow start and no macOS
-  support. Sixty lines of bash with no build meet P5 and P6.
+  support. A few short bash steps with no build meet P5 and P6.
 - **`jq` instead of Python.** Equal in speed and preinstalled on GitHub-hosted runners, but the
   behaviour for large numbers and `NaN` differs between `jq` versions. The Python behaviour is
   fixed by the standard library.
@@ -443,13 +527,13 @@ Changes:
 One branch and one PR per logical change, each from an up-to-date `main`, with `make format` and
 `make lint` run before committing.
 
-| Order | Branch                             | PR title                                                | Contents                                                                                                                                                                                                           |
-| ----- | ---------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1     | `bugfix/stop-logging-file-content` | Remove the file content preview from the log            | Finding 1 only, with the log-injection regression test. Small, so it can ship first, even before the rest lands.                                                                                                   |
-| 2     | `test/data-driven-action-tests`    | Run action tests from a shared case list                | `cases.json`, the matrix workflow, the `use-released` toggle, the slimmed helper, and removal of `nightly-test-released.yaml`. Behaviour of the action is unchanged. This PR proves that the old cases still pass. |
-| 3     | `refactor/single-step-action`      | Merge the action into one step and tighten the contract | New `action.yaml`, new cases from section 5, `fail-on-error`, removal of `file-exists`, and the `CLAUDE.md` changes.                                                                                               |
-| 4     | `docs/rewrite-readme`              | Rewrite the README around the new contract              | Section 6. It lands with, or just after, PR 3 so the README is never out of date on `main`.                                                                                                                        |
-| 5     | (release)                          | -                                                       | Tag `v0.2`, then set the pinned SHA in `ci-action.yaml`.                                                                                                                                                           |
+| Order | Branch                             | PR title                                                   | Contents                                                                                                                                                                                                           |
+| ----- | ---------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1     | `bugfix/stop-logging-file-content` | Remove the file content preview from the log               | Finding 1 only, with the log-injection regression test. Small, so it can ship first, even before the rest lands.                                                                                                   |
+| 2     | `test/data-driven-action-tests`    | Run action tests from a shared case list                   | `cases.json`, the matrix workflow, the `use-released` toggle, the slimmed helper, and removal of `nightly-test-released.yaml`. Behaviour of the action is unchanged. This PR proves that the old cases still pass. |
+| 3     | `refactor/split-action-steps`      | Split the action into small steps and tighten the contract | New `action.yaml`, `scripts/validate-json.py`, new cases from section 5, `fail-on-error`, removal of `file-exists`, and the `CLAUDE.md` changes.                                                                   |
+| 4     | `docs/rewrite-readme`              | Rewrite the README around the new contract                 | Section 6. It lands with, or just after, PR 3 so the README is never out of date on `main`.                                                                                                                        |
+| 5     | (release)                          | -                                                          | Tag `v0.2`, then set the pinned SHA in `ci-action.yaml`.                                                                                                                                                           |
 
 Reporting for each PR, following `CLAUDE.md`: say which of `make lint` and `make format` ran, say
 that CI was not awaited, and say that the action could not be run locally and can only be exercised
