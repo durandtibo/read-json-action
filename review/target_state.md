@@ -377,8 +377,8 @@ scripts/
 ### Workflow
 
 - A small `get-cases` job reads `test-data/cases.json` and outputs it. The `cases` job uses it as
-  `matrix.case`, run on `ubuntu-latest` and `macos-latest` only (one GNU and one BSD runner; see
-  "Cost and the choice to make"). Each matrix job has four steps:
+  `matrix.case` and crosses it with every runner of the shared `os_matrix` (decision: option A,
+  see "Cost and the decision taken"). Each matrix job has four steps:
   1. checkout,
   2. `uses: ./` with `continue-on-error: true` and `if: !inputs.use-released`,
   3. the same call to the released action, pinned by SHA with a `# ratchet:` comment, with
@@ -392,28 +392,43 @@ scripts/
     from `env:`, not from the parsed value);
   - when not valid, `json-content` is empty;
   - the log contains no copy of the file content (see the log-injection case below).
-- A second job, `smoke`, runs three cases (a valid object, an invalid file, a large number) on
-  every OS of the shared `os_matrix` and on the oldest and newest Python from
-  `python_versions_standard`. The OS and Python version barely affect the other cases, so they
-  are not dimensions of the main matrix.
+- A second job, `python-compat`, runs three cases (a valid object, an invalid file, a large
+  number) on `ubuntu-latest` and `macos-latest` with the oldest and newest Python from
+  `python_versions_standard`. The Python version barely affects the action (it only needs the
+  `json` module), so it is not a dimension of the main matrix.
 - A third job, `fromjson-compat`, checks that `fromJSON(json-content)` works for the valid
   fixtures. It runs only on `ubuntu-latest`, because workflow expressions run the same everywhere.
   This is the only place where the old `test_*_json` field checks are kept.
 
-#### Cost and the choice to make
+#### Cost and the decision taken
 
-Today the one job runs the whole case list on every combination of `os_matrix` and
-`python_versions_standard` (currently 13 Unix runners x 5 Python versions = 65 jobs of about 33
-cases each, in `workflow-config-action` `configs/versions.json` at the time of writing).
+Today one job runs the whole case list for every combination of `os_matrix` and
+`python_versions_standard`: currently 13 Unix runners x 5 Python versions = 65 jobs of about 33
+cases each (values from `workflow-config-action` `configs/versions.json` at the time of writing).
 
-| Option                                                              | Jobs per run    | YAML for cases            | OS coverage of every case |
-| ------------------------------------------------------------------- | --------------- | ------------------------- | ------------------------- |
-| A. Case matrix on every OS                                          | ~600 short jobs | ~0 (data in `cases.json`) | 13 runners                |
-| B. One job per OS, cases as steps, no Python dimension              | 13 jobs         | ~450 lines (steps)        | 13 runners                |
-| C. Case matrix on 2 OS plus a `smoke` job on every OS (recommended) | ~115 jobs       | ~0 (data in `cases.json`) | 2 runners, 3 cases on 13  |
+Decision: **option A**. Every case runs as its own job on every runner of `os_matrix`. The Python
+version is dropped from the main matrix and covered by `python-compat`.
 
-Option C is what the sections above describe. Option B is the fallback if you want every case on
-every runner, but it keeps the long list of steps (only the nightly duplicate goes away).
+| Option                                                 | Jobs per run    | YAML for cases            | Coverage                 |
+| ------------------------------------------------------ | --------------- | ------------------------- | ------------------------ |
+| **A. Case matrix on every OS (chosen)**                | ~600 short jobs | ~0 (data in `cases.json`) | Every case on 13 runners |
+| B. One job per OS, cases as steps, no Python dimension | 13 jobs         | ~450 lines (steps)        | Every case on 13 runners |
+| C. Case matrix on 2 OS plus a `smoke` job on every OS  | ~115 jobs       | ~0 (data in `cases.json`) | 2 runners, 3 cases on 13 |
+
+Consequences to accept, and how the design limits them:
+
+- About 600 jobs per run (about 45 cases x 13 runners, plus `python-compat` and `fromjson-compat`).
+  Each job spends 15 to 30 seconds on runner start and checkout for about a second of testing, so
+  the total runner time is higher than today and the wall time depends on the runner pool.
+- Use `fail-fast: false`, so one failing case does not hide the others. Set `max-parallel`
+  explicitly (keep today's 8 as the starting value and raise it if runs are too slow), and keep
+  `timeout-minutes: 5` on the job.
+- Skip the Python setup in the case jobs: the action only needs the preinstalled `python3`, and
+  not installing one is part of what the test checks.
+- Because the case matrix is large, `ci.yaml` triggers it as it does today (pull requests, `main`,
+  schedule). If PR feedback becomes too slow, the first thing to try is option C for pull requests
+  and A only for the nightly run. That is a change to one `if:`, not a redesign.
+- The job names are `<case id> (<os>)`, so a failure points to the exact case and runner.
 
 ### Cases to keep
 
