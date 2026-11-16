@@ -135,7 +135,9 @@ runs:
     # Step 4: Display summary
     # ============================================================================
     # Provide a summary of what was read for easy debugging in workflow logs.
-    # Shows a preview of the JSON content (first 200 characters).
+    # The file content is deliberately never printed: a line such as "::error::x"
+    # or "::add-mask::x" in the file would run as a workflow command, and the
+    # file may contain secrets.
     - name: Display summary
       if: steps.check-file.outputs.file-exists == 'true'
       shell: bash
@@ -150,10 +152,3 @@ runs:
         echo "  📁 File: $FILE_PATH"
         echo "  ✓ Exists: $FILE_EXISTS"
         echo "  ✓ Valid JSON: $IS_VALID_JSON"
-
-        # Show a preview of the content (first 200 characters), read directly
-        # from disk to avoid shell interpretation of the file content.
-        echo ""
-        echo "📄 Content preview (first 200 chars):"
-        head -c 200 "$FILE_PATH"
-        echo "..."

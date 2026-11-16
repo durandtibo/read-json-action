@@ -712,3 +712,70 @@ jobs:
           verify_json_value "file-exists" "false" "$FILE_EXISTS"
           verify_output_empty "is-valid-json" "$IS_VALID"
           verify_output_empty "json-content" "$CONTENT"
+
+      # -----------------------------------------------------------------------
+      # Log injection: file content must never reach the log
+      # -----------------------------------------------------------------------
+      # The fixture is invalid JSON whose lines are workflow commands. If the
+      # action printed any part of the file, the runner would run them and
+      # create annotations. The log-injection job below checks that none exist.
+      - name: 🧪 Test file content resembling workflow commands, fail-on-invalid-json=false
+        id: test-log-injection
+        uses: ./
+        with:
+          file-path: test-data/log-injection.json
+          fail-on-invalid-json: false
+
+      - name: ✓ Verify file content resembling workflow commands is reported without failing
+        env:
+          OUTCOME: ${{ steps.test-log-injection.outcome }}
+          IS_VALID: ${{ steps.test-log-injection.outputs.is-valid-json }}
+        run: |
+          set -euo pipefail
+          source scripts/test-helper.sh
+
+          verify_step_outcome "log injection fixture" "success" "$OUTCOME"
+          verify_json_value "is-valid-json" "false" "$IS_VALID"
+
+  # Annotations are created from the job log only once the job has finished, so
+  # they are checked in a second job. A workflow command that ran because the
+  # action printed the fixture would show up as an annotation containing the
+  # marker text.
+  log-injection:
+    needs: test
+    if: ${{ !cancelled() }}
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: ✓ Verify no annotation was forged by file content
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          marker="LOG-INJECTION-MARKER"
+          found=0
+          job_ids="$(gh api --paginate \
+            "repos/$REPOSITORY/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs" \
+            --jq '.jobs[] | select(.name | contains("log-injection") | not) | .id')"
+          [ -n "$job_ids" ] || {
+            echo "::error::No job found for run $RUN_ID"
+            exit 1
+          }
+          for job_id in $job_ids; do
+            # The job id is also the id of its check run.
+            if gh api --paginate "repos/$REPOSITORY/check-runs/$job_id/annotations" \
+              --jq '.[].message' | grep -qF "$marker"; then
+              echo "::error::Job $job_id has an annotation created by file content"
+              found=1
+            fi
+          done
+          [ "$found" -eq 0 ]
+          echo "No annotation created by file content in $(echo "$job_ids" | wc -l | tr -d ' ') jobs"
