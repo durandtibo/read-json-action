@@ -61,6 +61,7 @@ jobs:
     uses: ./.github/workflows/ci-action.yaml
     with:
       test-matrix: ${{ needs.get-matrix.outputs.test_matrix }}
+      use-released: false
     permissions:
       actions: read
       checks: read
