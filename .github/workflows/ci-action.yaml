@@ -1,19 +1,28 @@
-# Workflow testing the action on the cases listed in test-data/cases.json. By
-# default it runs the action from this checkout (uses: ./), i.e. the version
-# that is not released yet. With use-released: true it runs the released
-# action, pinned by SHA below, on the very same cases (see nightly.yaml). The
-# pinned SHA lives only in this file.
+# Workflow testing the action in a real workflow. One file tests both versions:
+#   - use-released: false (default, called by ci.yaml): the action from the current checkout
+#     (uses: ./), i.e. the version that is not released yet.
+#   - use-released: true (called by nightly.yaml): the released action, pinned by SHA below, on the
+#     very same cases, to catch regressions in what consumers pick up. The pinned SHA lives only
+#     in this file (bot-pin-action.yaml updates it).
+#
+# The tests check the contract and the wiring (inputs, outputs, failures) on the real runners.
+# The syntax check itself is tested alone in ci-python.yaml (level 1). They are split in two
+# groups, both defined by the rows of test-data/cases.json:
+#   - general behaviour ("general": true): the default usage and the main documented usages, on
+#     every runner of the shared OS matrix (os_matrix)
+#   - edge cases (all other rows): one invalid value, one unusual file or path, on one runner
+#     (ubuntu-latest), or on the *-latest runners of every OS (os_latest) when the row has
+#     "os-sensitive": true (file system, encoding, locale, paths)
+# A new test is a new row of cases.json, not a new job. A row that expects a failure follows a
+# positive run on the same runner, so that it cannot fail for the wrong reason.
 #
 # Jobs:
-#   get-cases       reads test-data/cases.json
-#   cases           one job per case and per runner of the shared OS matrix. Generated
-#                   fixtures are created first by scripts/setup-fixtures.sh
-#   python-compat   cases flagged "python-compat" on every runner of the shared OS matrix,
-#                   with the oldest and newest Python of the shared Python list
+#   get-cases       reads test-data/cases.json and expands it to one matrix cell per row and runner
+#   cases           one job per cell. Generated fixtures are created first by
+#                   scripts/setup-fixtures.sh
 #   fromjson-compat valid fixtures must parse with fromJSON()
 #   log-injection   file content must never create annotations (log injection)
 #
-# To add a test: add a fixture to test-data/ and a case to test-data/cases.json.
 # Outputs are always passed to verification scripts through env, never
 # interpolated into the script.
 
@@ -30,20 +39,34 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_dispatch:
+    inputs:
+      use-released:
+        description: "Test the released action (pinned by SHA) instead of the code of this checkout"
+        required: false
+        default: false
+        type: boolean
 
 permissions: {}
 
 jobs:
+  # A manual run loads the shared matrix itself; a call from another workflow passes it.
+  get-matrix:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/lib-get-test-matrix.yaml
+    permissions:
+      contents: read
+
   # Read the case list once. It is the single source of truth for the tests.
   get-cases:
+    needs: get-matrix
+    if: ${{ !cancelled() && (needs.get-matrix.result == 'success' || needs.get-matrix.result == 'skipped') }}
     permissions:
       contents: read
     runs-on: ubuntu-slim
     timeout-minutes: 2
     outputs:
       cases: ${{ steps.load.outputs.cases }}
-      compat-cases: ${{ steps.load.outputs.compat-cases }}
-      python-versions: ${{ steps.load.outputs.python-versions }}
       valid-cases: ${{ steps.load.outputs.valid-cases }}
     steps:
       - name: Checkout
@@ -52,19 +75,23 @@ jobs:
       - name: Load cases
         id: load
         env:
-          TEST_MATRIX: ${{ inputs.test-matrix }}
+          TEST_MATRIX: ${{ inputs.test-matrix || needs.get-matrix.outputs.test_matrix }}
         run: |
           set -euo pipefail
 
-          cases="$(jq -c '.' test-data/cases.json)"
+          # One cell per row and runner: the general rows on every runner of os_matrix, the
+          # os-sensitive rows on os_latest, the other rows on ubuntu-latest.
+          cases="$(jq -c --argjson matrix "$TEST_MATRIX" '
+            [.[] | . as $case
+              | (if .general == true then $matrix.os_matrix
+                 elif ."os-sensitive" == true then $matrix.os_latest
+                 else ["ubuntu-latest"] end)[] as $os
+              | {case: $case, os: $os}]' test-data/cases.json)"
           {
             echo "cases=$cases"
-            echo "compat-cases=$(jq -c '[.[] | select(."python-compat" == true)]' test-data/cases.json)"
             echo "valid-cases=$(jq -c '[.[] | select(."expect-valid" == "true" and ."skip-fromjson" != true)]' test-data/cases.json)"
-            # Oldest and newest Python of the standard list.
-            echo "python-versions=$(jq -c '.python_versions_standard | sort_by(split(".") | map(tonumber)) | [first, last]' <<<"$TEST_MATRIX")"
           } >> "$GITHUB_OUTPUT"
-          echo "Loaded $(jq 'length' <<<"$cases") cases"
+          echo "Loaded $(jq 'length' test-data/cases.json) cases, $(jq 'length' <<<"$cases") cells"
 
   cases:
     needs: get-cases
@@ -77,8 +104,7 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        os: ${{ fromJson(inputs.test-matrix).os_matrix }}
-        case: ${{ fromJson(needs.get-cases.outputs.cases) }}
+        include: ${{ fromJson(needs.get-cases.outputs.cases) }}
 
     steps:
       - name: Checkout
@@ -91,6 +117,20 @@ jobs:
           set -euo pipefail
           bash scripts/setup-fixtures.sh
 
+      # A case that expects a failure follows a positive run on the same runner, so that it
+      # cannot fail for the wrong reason (a broken runner or action).
+      - name: 🧪 Positive run before a failure case (this checkout)
+        if: ${{ !inputs.use-released && matrix.case['expect-outcome'] == 'failure' }}
+        uses: ./
+        with:
+          file-path: test-data/single-line.json
+
+      - name: 🧪 Positive run before a failure case (released)
+        if: ${{ inputs.use-released && matrix.case['expect-outcome'] == 'failure' }}
+        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        with:
+          file-path: test-data/single-line.json
+
       - name: 🧪 Run the action (this checkout)
         id: local
         if: ${{ !inputs.use-released }}
@@ -112,65 +152,6 @@ jobs:
         continue-on-error: true
         env:
           LC_ALL: ${{ matrix.case['lc-all'] }}
-
-      - name: ✓ Verify the case
-        env:
-          CASE_ID: ${{ matrix.case.id }}
-          FILE_PATH: ${{ matrix.case['file-path'] }}
-          EXPECT_OUTCOME: ${{ matrix.case['expect-outcome'] }}
-          EXPECT_VALID: ${{ matrix.case['expect-valid'] }}
-          OUTCOME: ${{ inputs.use-released && steps.released.outcome || steps.local.outcome }}
-          IS_VALID: ${{ steps.local.outputs.is-valid-json || steps.released.outputs.is-valid-json }}
-          CONTENT: ${{ steps.local.outputs.json-content || steps.released.outputs.json-content }}
-        run: |
-          set -euo pipefail
-          source scripts/test-helper.sh
-
-          verify_case
-
-  # The Python version barely affects the action (it only needs the json
-  # module), so it is not a dimension of the main matrix.
-  python-compat:
-    needs: get-cases
-    name: ${{ matrix.case.id }} (${{ matrix.os }}, Python ${{ matrix.python-version }})
-    permissions:
-      contents: read
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 5
-    strategy:
-      max-parallel: 8
-      fail-fast: false
-      matrix:
-        os: ${{ fromJson(inputs.test-matrix).os_matrix }}
-        python-version: ${{ fromJson(needs.get-cases.outputs.python-versions) }}
-        case: ${{ fromJson(needs.get-cases.outputs.compat-cases) }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # ratchet:actions/setup-python@v7.1.0
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: 🧪 Run the action (this checkout)
-        id: local
-        if: ${{ !inputs.use-released }}
-        uses: ./
-        with:
-          file-path: ${{ matrix.case['file-path'] }}
-          fail-on-error: ${{ matrix.case['fail-on-error'] || 'true' }}
-        continue-on-error: true
-
-      - name: 🧪 Run the action (released)
-        id: released
-        if: ${{ inputs.use-released }}
-        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
-        with:
-          file-path: ${{ matrix.case['file-path'] }}
-          fail-on-error: ${{ matrix.case['fail-on-error'] || 'true' }}
-        continue-on-error: true
 
       - name: ✓ Verify the case
         env:
@@ -238,7 +219,7 @@ jobs:
   # printed any part of a file, the runner would run them and create annotations
   # containing the marker.
   log-injection:
-    needs: [cases, python-compat, fromjson-compat]
+    needs: [cases, fromjson-compat]
     if: ${{ !cancelled() }}
     permissions:
       actions: read
@@ -260,7 +241,7 @@ jobs:
           found=0
           job_ids="$(gh api --paginate \
             "repos/$REPOSITORY/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs" \
-            --jq '.jobs[] | select(.name | contains("log-injection") | not) | .id')"
+            --jq '.jobs[] | select(.name | endswith("log-injection") | not) | .id')"
           [ -n "$job_ids" ] || {
             echo "::error::No job found for run $RUN_ID"
             exit 1

@@ -39,7 +39,23 @@ jobs:
     permissions:
       contents: read
 
-  # Test the action from the current repository code (not released yet) on every case of test-data/cases.json and every runner
+  # Unit tests of scripts/validate-json.py on every OS and Python version of the shared matrices
+  python:
+    needs: get-matrix
+    uses: ./.github/workflows/ci-python.yaml
+    with:
+      test-matrix: ${{ needs.get-matrix.outputs.test_matrix }}
+    permissions:
+      contents: read
+
+  # Check that the files shipped to the consumers are the files the action needs
+  export:
+    uses: ./.github/workflows/ci-export.yaml
+    permissions:
+      contents: read
+
+  # Test the action from the current repository code (not released yet): the general cases of
+  # test-data/cases.json on every runner, the edge cases on one runner
   action:
     needs: get-matrix
     uses: ./.github/workflows/ci-action.yaml
