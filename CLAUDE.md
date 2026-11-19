@@ -176,7 +176,8 @@ Rules:
   needs, because `uses: ./` runs the whole checkout and hides a missing file.
 - Bound the cost: set `timeout-minutes`, `fail-fast: false` and `max-parallel` on matrix jobs. The
   general rows cross `os_matrix`; every other row is one cell, so a new edge case costs one job.
-- Put assertions shared by the local and released runs in one script (`scripts/test-helper.sh`), not in two workflows.
+- Put assertions shared by the local and released runs in one script (`scripts/test-helper.sh`),
+  not in two workflows.
 - Keep the README inputs and outputs in step with `action.yaml`; `tests/test_readme_sync.py`
   (`make test`) compares the names and the default.
 
