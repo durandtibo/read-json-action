@@ -130,8 +130,10 @@ Releases are immutable exact version tags (`v0.2`, ...). There are no floating t
 
 Contributions are welcome! Open an issue or pull request on
 [GitHub](https://github.com/durandtibo/read-json-action). Run `make format` and `make lint`
-before committing. To add a test, add a fixture to `test-data/` and a case to
-`test-data/cases.json`.
+before committing, and `make test` to run the unit tests of `scripts/validate-json.py`. To add an
+action test, add a fixture to `test-data/` and a case to `test-data/cases.json`. A case with
+`"general": true` runs on every Linux and macOS runner, the other cases run on one runner (or on the
+`*-latest` runners with `"os-sensitive": true`).
 
 ## License
 

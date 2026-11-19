@@ -17,12 +17,15 @@ name: Get Test Matrix
 #         matrix:
 #           python-version: ${{ fromJson(needs.get-matrix.outputs.test_matrix).python_versions_standard }}
 #           os: ${{ fromJson(needs.get-matrix.outputs.test_matrix).os_matrix }}
+#
+# Keys: os_matrix (every Linux and macOS runner), os_macos, os_latest (the *-latest runners,
+# for the edge cases that depend on the OS) and the Python version lists.
 
 on:
   workflow_call:
     outputs:
       test_matrix:
-        description: "JSON string containing python_versions, python_versions_standard, os_matrix and os_macos"
+        description: "JSON string containing python_versions, python_versions_standard, os_matrix, os_macos and os_latest"
         value: ${{ jobs.get-matrix.outputs.test_matrix }}
 
   workflow_dispatch: # Allows manual triggering for testing purposes
@@ -56,7 +59,7 @@ jobs:
             --argjson python_versions_standard "$PYTHON_VERSIONS_STANDARD" \
             --argjson os_matrix "$OS_UNIX" \
             --argjson os_macos "$OS_MACOS" \
-            '{python_versions: $python_versions, python_versions_standard: $python_versions_standard, os_matrix: $os_matrix, os_macos: $os_macos}')
+            '{python_versions: $python_versions, python_versions_standard: $python_versions_standard, os_matrix: $os_matrix, os_macos: $os_macos, os_latest: ($os_matrix | map(select(endswith("-latest"))))}')
           echo "test_matrix=$test_matrix" >> "$GITHUB_OUTPUT"
 
       - name: Display test matrix
