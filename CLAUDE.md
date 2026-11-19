@@ -12,7 +12,8 @@ result, expose content), plus `scripts/validate-json.py` for the syntax check, w
 with `unittest` in `tests/`. `scripts/test-helper.sh` provides assertion helpers used by the test
 workflow, `scripts/setup-fixtures.sh` creates the fixtures that cannot be committed, and
 `test-data/` holds the fixtures and the case list `cases.json` those workflows read. `dev/` holds
-maintainer helpers (`check_export.sh`), not part of the action.
+maintainer helpers (`check_export.sh`), not part of the action. `review/` holds the review notes
+(`target_state.md`), also not part of the action.
 
 ## Environment
 
@@ -72,6 +73,8 @@ maintainer helpers (`check_export.sh`), not part of the action.
 - Quote all variables; validate inputs early.
 - Report problems with clear `::error::` / `::warning::` messages.
 - Code must pass `shellcheck` and `shfmt` via `make lint` / `make format`.
+- A helper that can fail ends with an explicit `return 1` on failure (as in
+  `scripts/test-helper.sh`). Never rely on `set -e`: a caller in an `||` list turns it off.
 
 ## Workflow structure (`.github/workflows/`)
 
@@ -79,7 +82,7 @@ Files are prefixed by role:
 
 - `ci.yaml`: entry point for pull requests, pushes to `main`, a nightly schedule and manual runs.
   It holds no steps, only jobs that call the reusable workflows below.
-  - `ci-format.yaml`: Markdown, shell and YAML lint checks (via `make`).
+  - `ci-format.yaml`: formatting (`make format` leaves no change) and lint (`make lint`) checks.
   - `ci-python.yaml`: unit tests of `scripts/validate-json.py` (`make test`) on the OS matrix and the
     standard Python versions.
   - `ci-export.yaml`: checks the exported set (`make check-export`, `dev/check_export.sh`).
@@ -166,12 +169,14 @@ Rules:
 - Every validated input has a case with an invalid value that asserts the action failed in the
   validation. Assert the value or the format of outputs, never just print them.
 - Failure paths use `continue-on-error: true`, an `id`, and a step that asserts `steps.<id>.outcome`.
+  Assert the outcome and the outputs (`is-valid-json`, empty `json-content`), not a log message.
   A negative case needs a positive run on the same runner before it, so it cannot pass for the
   wrong reason.
 - Check what is shipped: the exported set (`make check-export`) must contain every file the action
   needs, because `uses: ./` runs the whole checkout and hides a missing file.
-- Set `timeout-minutes` and `fail-fast: false` on matrix jobs. Put assertions shared by the local
-  and released runs in one script (`scripts/test-helper.sh`), not in two workflows.
+- Bound the cost: set `timeout-minutes`, `fail-fast: false` and `max-parallel` on matrix jobs. The
+  general rows cross `os_matrix`; every other row is one cell, so a new edge case costs one job.
+- Put assertions shared by the local and released runs in one script (`scripts/test-helper.sh`), not in two workflows.
 - Keep the README inputs and outputs in step with `action.yaml`; `tests/test_readme_sync.py`
   (`make test`) compares the names and the default.
 
