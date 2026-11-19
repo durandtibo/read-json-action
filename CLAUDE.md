@@ -116,7 +116,8 @@ Conventions:
   file, missing file, directory, invalid JSON, special characters, injection attempts). Fixtures that
   cannot be committed (over-size, unreadable) are created by `scripts/setup-fixtures.sh`.
 - The syntax rules of `scripts/validate-json.py` are tested alone in `tests/test_validate_json.py`
-  (`make test`, no network, no GitHub, standard library only), one behaviour per test.
+  (`make test`, no network, no GitHub, standard library only), one behaviour per test. The README
+  against `action.yaml` is checked by `tests/test_readme_sync.py`.
 - Pass outputs to verification scripts through `env:`, never interpolated into the script.
 - Every bug fix needs a regression test that fails without the fix.
 - If a check fails for a real reason, report it rather than weakening the test.
@@ -171,7 +172,8 @@ Rules:
   needs, because `uses: ./` runs the whole checkout and hides a missing file.
 - Set `timeout-minutes` and `fail-fast: false` on matrix jobs. Put assertions shared by the local
   and released runs in one script (`scripts/test-helper.sh`), not in two workflows.
-- Keep the README inputs and outputs in step with `action.yaml`.
+- Keep the README inputs and outputs in step with `action.yaml`; `tests/test_readme_sync.py`
+  (`make test`) compares the names and the default.
 
 ## Reporting
 
