@@ -1,8 +1,10 @@
 # read-json-action
 
 [![CI](https://github.com/durandtibo/read-json-action/actions/workflows/ci.yaml/badge.svg)](https://github.com/durandtibo/read-json-action/actions/workflows/ci.yaml)
-[![Nightly Tests](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml/badge.svg)](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml)
-[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/durandtibo/read-json-action/blob/main/LICENSE)
+[![Nightly](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml/badge.svg)](https://github.com/durandtibo/read-json-action/actions/workflows/nightly.yaml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/durandtibo/read-json-action/badge)](https://scorecard.dev/viewer/?uri=github.com/durandtibo/read-json-action)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/tag/durandtibo/read-json-action?label=release)](https://github.com/durandtibo/read-json-action/tags)
 
 A GitHub composite action that reads one JSON file from disk, checks that it is valid JSON, and
 exposes its text and a validity flag as step outputs. It works on Linux and macOS runners, needs
