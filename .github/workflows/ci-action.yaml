@@ -127,7 +127,7 @@ jobs:
 
       - name: 🧪 Positive run before a failure case (released)
         if: ${{ inputs.use-released && matrix.case['expect-outcome'] == 'failure' }}
-        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        uses: durandtibo/read-json-action@844a2fda414493e79506fc7e874c18a064859885 # ratchet:durandtibo/read-json-action@v0.2.0
         with:
           file-path: test-data/single-line.json
 
@@ -145,7 +145,7 @@ jobs:
       - name: 🧪 Run the action (released)
         id: released
         if: ${{ inputs.use-released }}
-        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        uses: durandtibo/read-json-action@844a2fda414493e79506fc7e874c18a064859885 # ratchet:durandtibo/read-json-action@v0.2.0
         with:
           file-path: ${{ matrix.case['file-path'] }}
           fail-on-error: ${{ matrix.case['fail-on-error'] || 'true' }}
@@ -199,7 +199,7 @@ jobs:
       - name: 🧪 Run the action (released)
         id: released
         if: ${{ inputs.use-released }}
-        uses: durandtibo/read-json-action@b014656c6f0c53b3caf9056fedeaead02ebae3ad # ratchet:durandtibo/read-json-action@v0.1
+        uses: durandtibo/read-json-action@844a2fda414493e79506fc7e874c18a064859885 # ratchet:durandtibo/read-json-action@v0.2.0
         with:
           file-path: ${{ matrix.case['file-path'] }}
 

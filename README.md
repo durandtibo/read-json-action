@@ -36,7 +36,7 @@ steps:
   - uses: actions/checkout@v7
 
   - id: config
-    uses: durandtibo/read-json-action@v0.2
+    uses: durandtibo/read-json-action@v0.2.0
     with:
       file-path: config.json
 
@@ -70,7 +70,7 @@ used. Test it in an `if:`:
 
 ```yaml
 - id: optional
-  uses: durandtibo/read-json-action@v0.2
+  uses: durandtibo/read-json-action@v0.2.0
   with:
     file-path: optional.json
     fail-on-error: false
@@ -114,7 +114,7 @@ A caller mistake (empty `file-path`, a bad `fail-on-error`, no `python3`) always
 
 ## Release notes
 
-### v0.2 (breaking)
+### v0.2.0 (breaking)
 
 | Change                                                   | Migration                                                                                                    |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -126,7 +126,7 @@ A caller mistake (empty `file-path`, a bad `fail-on-error`, no `python3`) always
 | `NaN`, `Infinity`, BOM and non-UTF-8 files are invalid   | Fix the files. `fromJSON()` rejected them anyway.                                                            |
 | No content preview in the log                            | Read the file in a later step if you need it, and mask secrets yourself.                                     |
 
-Releases are immutable exact version tags (`v0.2`, ...). There are no floating tags such as `v1`.
+Releases are immutable exact version tags (`v0.2.0`, ...). There are no floating tags such as `v1`.
 
 ## Contributing
 
